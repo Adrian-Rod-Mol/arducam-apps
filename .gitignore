@@ -1,4 +1,6 @@
 build
 *~
 .idea
-apps/rpicam_*
+rpicam*
+image/image.hpp
+image/jpeg.cpp
