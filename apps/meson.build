@@ -27,6 +27,11 @@ rpicam_jpeg = executable('rpicam-jpeg', files('rpicam_jpeg.cpp'),
                          dependencies: [libcamera_dep, boost_dep],
                          link_with : rpicam_app,
                          install : true)
+arducam_raw = executable('arducam-raw', files('arducam_raw.cpp'),
+                      include_directories : include_directories('..'),
+                      dependencies: [libcamera_dep, boost_dep],
+                      link_with : rpicam_app,
+                      install : true)
 
 # Install symlinks to the old app names for legacy purposes.
 install_symlink('libcamera-still',
