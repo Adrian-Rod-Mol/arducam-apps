@@ -122,6 +122,8 @@ struct VideoOptions : public Options
 			 "Write output to a circular buffer of the given size (in MB) which is saved on exit")
 			("frames", value<unsigned int>(&frames)->default_value(0),
 			 "Run for the exact number of frames specified. This will override any timeout set.")
+			("resolution,r", value<std::string>(&resolution_key)->default_value("LOW"),
+				   "Select the captured image resolution between LOW or MEDIUM")
 #if LIBAV_PRESENT
 			("libav-video-codec", value<std::string>(&libav_video_codec)->default_value("h264_v4l2m2m"),
 			 "Sets the libav video codec to use. "
@@ -192,6 +194,8 @@ struct VideoOptions : public Options
 	size_t circular;
 	uint32_t frames;
 
+	std::string resolution_key;
+
 	virtual bool Parse(int argc, char *argv[]) override
 	{
 		if (Options::Parse(argc, argv) == false)
@@ -234,6 +238,8 @@ struct VideoOptions : public Options
 			LOG(1, "Overriding H.264 level 4.2");
 			level = "4.2";
 		}
+		if (resolution_key != "LOW" && resolution_key != "MEDIUM")
+			throw std::runtime_error("unrecognised resolution key " + resolution_key);
 
 		return true;
 	}
@@ -254,6 +260,7 @@ struct VideoOptions : public Options
 		std::cerr << "    split: " << split << std::endl;
 		std::cerr << "    segment: " << segment << std::endl;
 		std::cerr << "    circular: " << circular << std::endl;
+		std::cerr << "    resolution key (Arducam): " << resolution_key << std::endl;
 	}
 
 private:
