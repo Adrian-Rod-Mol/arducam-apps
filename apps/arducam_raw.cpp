@@ -6,25 +6,25 @@
  */
 #include <chrono>
 
-#include "core/rpicam_encoder.hpp"
-#include "encoder/null_encoder.hpp"
-#include "output/output.hpp"
+#include "../core/rpicam_encoder.hpp"
+#include "../encoder/arducam_encoder.hpp"
+#include "../output/output.hpp"
 
 using namespace std::placeholders;
 
-class LibcameraRaw : public RPiCamEncoder
+class ArducamRaw : public RPiCamEncoder
 {
 public:
-	LibcameraRaw() : RPiCamEncoder() {}
+	ArducamRaw() : RPiCamEncoder() {}
 
 protected:
 	// Force the use of "null" encoder.
-	void createEncoder() { encoder_ = std::unique_ptr<Encoder>(new NullEncoder(GetOptions())); }
+	void createEncoder() { encoder_ = std::unique_ptr<Encoder>(new ArducamEncoder(GetOptions())); }
 };
 
 // The main even loop for the application.
 
-static void event_loop(LibcameraRaw &app)
+static void event_loop(ArducamRaw &app)
 {
 	VideoOptions const *options = app.GetOptions();
 	std::unique_ptr<Output> output = std::unique_ptr<Output>(Output::Create(options));
@@ -32,14 +32,14 @@ static void event_loop(LibcameraRaw &app)
 	app.SetMetadataReadyCallback(std::bind(&Output::MetadataReady, output.get(), _1));
 
 	app.OpenCamera();
-	app.ConfigureVideo(LibcameraRaw::FLAG_VIDEO_RAW);
+	app.ConfigureVideo(ArducamRaw::FLAG_VIDEO_RAW);
 	app.StartEncoder();
 	app.StartCamera();
 	auto start_time = std::chrono::high_resolution_clock::now();
 
 	for (unsigned int count = 0; ; count++)
 	{
-		LibcameraRaw::Msg msg = app.Wait();
+		ArducamRaw::Msg msg = app.Wait();
 
 		if (msg.type == RPiCamApp::MsgType::Timeout)
 		{
@@ -48,7 +48,7 @@ static void event_loop(LibcameraRaw &app)
 			app.StartCamera();
 			continue;
 		}
-		if (msg.type != LibcameraRaw::MsgType::RequestComplete)
+		if (msg.type != ArducamRaw::MsgType::RequestComplete)
 			throw std::runtime_error("unrecognised message!");
 		if (count == 0)
 		{
@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
 {
 	try
 	{
-		LibcameraRaw app;
+		ArducamRaw app;
 		VideoOptions *options = app.GetOptions();
 		if (options->Parse(argc, argv))
 		{
