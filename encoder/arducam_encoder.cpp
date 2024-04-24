@@ -9,8 +9,16 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
+#include <string>
 
 #include "arducam_encoder.hpp"
+
+// When read from the buffer, some pixels don't contain information. This is an empirical map
+//  that pairs the memory size with the actual image size
+static const std::map<std::string, ResolutionPairs> resolution_map_ = {
+	{"LOW", ResolutionPairs(1344, 990, 1328, 990)},
+	{"MEDIUM", ResolutionPairs(2032, 1080, 2024, 1080)}
+};
 
 ArducamEncoder::ArducamEncoder(const VideoOptions *options)
 	: Encoder(options), abortEncode_(false), abortOutput_(false), index_(0)
