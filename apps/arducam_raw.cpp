@@ -29,13 +29,15 @@ static void event_loop(ArducamRaw &app)
 {
 	VideoOptions const *options = app.GetOptions();
 	std::unique_ptr<Output> output = std::unique_ptr<Output>(Output::Create(options));
+	LOG(1, "Pointer to output initialized correctly");
 	app.SetEncodeOutputReadyCallback(std::bind(&Output::OutputReady, output.get(), _1, _2, _3, _4));
 	app.SetMetadataReadyCallback(std::bind(&Output::MetadataReady, output.get(), _1));
-
+	LOG(1, "Before opening the camera");
 	app.OpenCamera();
 	app.ConfigureVideo(ArducamRaw::FLAG_VIDEO_RAW);
 	app.StartEncoder();
 	app.StartCamera();
+	LOG(1, "Camera and video started correctly");
 	auto start_time = std::chrono::high_resolution_clock::now();
 
 	for (unsigned int count = 0; ; count++)
@@ -73,13 +75,12 @@ static void event_loop(ArducamRaw &app)
 
 int main(int argc, char *argv[])
 {
-	std::cerr << "Before try\n";
 	try
 	{
-		LOG(1, "Before creating the class");
 		ArducamRaw app;
-		LOG(1, "Before video options");
+
 		VideoOptions *options = app.GetOptions();
+		LOG(1, "Video options get initialized correctly");
 		if (options->Parse(argc, argv))
 		{
 			// Disable any codec (h.264/libav) based operations.
@@ -88,7 +89,7 @@ int main(int argc, char *argv[])
 			options->nopreview = true;
 			if (options->verbose >= 2)
 				options->Print();
-
+			LOG(1, "The program enters the event loop");
 			event_loop(app);
 		}
 	}
