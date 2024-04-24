@@ -11,6 +11,9 @@
 #include <algorithm>
 #include <string>
 
+#include <stdlib.h>
+#include <malloc.h>
+
 #include "arducam_encoder.hpp"
 
 // When read from the buffer, some pixels don't contain information. This is an empirical map
@@ -63,7 +66,7 @@ void ArducamEncoder::encodeArducam(ArducamEncoder::EncodeItem &item, uint16_t *&
 	auto input_band_3_it = input_image.begin() + band_height*current_res_->fileWidth;
 	auto input_band_4_it = input_image.begin() + band_height*current_res_->fileWidth + band_width;
 	// The memory allocation and destruction is probably needed
-	encoded_buffer = new uint16_t[current_res_->imageWidth*current_res_->imageHeight];
+	encoded_buffer = std::static_cast<uint16_t*>(malloc(current_res_->imageWidth*current_res_->imageHeight*sizeof(unit16_t)));
 	auto encoded_image = std::vector<uint16_t>(current_res_->imageWidth*current_res_->imageHeight);
 
 	auto out_band_1_it = encoded_image.begin();
@@ -88,7 +91,7 @@ void ArducamEncoder::encodeArducam(ArducamEncoder::EncodeItem &item, uint16_t *&
 		copyBandColumn(input_band_4_it, (input_band_4_it + band_width), out_band_4_it, band_width, current_res_->fileWidth);
 	}
 	std::copy(encoded_image.begin(), encoded_image.end(), encoded_buffer);
-	buffer_len = current_res_->imageWidth*current_res_->imageHeight;
+	buffer_len = current_res_->imageWidth*current_res_->imageHeight*2;
 }
 
 void ArducamEncoder::encodeThread(int num)
