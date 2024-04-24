@@ -27,6 +27,7 @@ protected:
 
 static void event_loop(ArducamRaw &app)
 {
+	LOG(1, "Logging works in the event loop");
 	VideoOptions const *options = app.GetOptions();
 	std::unique_ptr<Output> output = std::unique_ptr<Output>(Output::Create(options));
 	LOG(1, "Pointer to output initialized correctly");
