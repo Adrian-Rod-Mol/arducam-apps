@@ -102,7 +102,6 @@ void Output::outputBuffer(void *mem, size_t size, int64_t timestamp_us, uint32_t
 
 Output *Output::Create(VideoOptions const *options)
 {
-	std::cerr << "Gets somehow inside here" << std::endl;
 	if (options->codec == "libav" || (options->codec == "h264" && options->GetPlatform() != Platform::VC4))
 		return new Output(options);
 
@@ -111,7 +110,6 @@ Output *Output::Create(VideoOptions const *options)
 	else if (options->circular)
 		return new CircularOutput(options);
 	else if (!options->output.empty()){
-		std::cerr << "Detects that is a file output" << std::endl;
 		return new FileOutput(options);}
 	else
 		return new Output(options);
