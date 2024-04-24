@@ -29,6 +29,7 @@ static void event_loop(ArducamRaw &app)
 {
 	LOG(1, "Logging works in the event loop");
 	VideoOptions const *options = app.GetOptions();
+	std::cerr << "Get options not working!" << std::endl;
 	std::unique_ptr<Output> output = std::unique_ptr<Output>(Output::Create(options));
 	LOG(1, "Pointer to output initialized correctly");
 	app.SetEncodeOutputReadyCallback(std::bind(&Output::OutputReady, output.get(), _1, _2, _3, _4));
