@@ -132,7 +132,6 @@ void ArducamEncoder::encodeThread(int num)
 		auto start_time = std::chrono::high_resolution_clock::now();
 		encodeArducam(encode_item, encoded_buffer, buffer_len);
 		encode_time += (std::chrono::high_resolution_clock::now() - start_time);
-		std::cout << buffer_len << std::endl;
 		frames++;
 		// Don't return buffers until the output thread as that's where they're
 		// in order again.
@@ -185,7 +184,7 @@ void ArducamEncoder::outputThread()
 		}
 	got_item:
 		input_done_callback_(nullptr);
-
+		std::cout << item.mem[1] << "\n";
 		output_ready_callback_(item.mem, item.bytes_used, item.timestamp_us, true);
 		free(item.mem);
 		index++;
