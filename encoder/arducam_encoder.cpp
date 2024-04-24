@@ -184,7 +184,7 @@ void ArducamEncoder::outputThread()
 		}
 	got_item:
 		input_done_callback_(nullptr);
-		std::cout << item.mem[1] << "\n";
+		std::cout << reinterpret_cast<uint16_t*>(item.mem)[0] << "\n";
 		output_ready_callback_(item.mem, item.bytes_used, item.timestamp_us, true);
 		free(item.mem);
 		index++;
