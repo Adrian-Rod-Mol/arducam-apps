@@ -4,3 +4,4 @@ build
 rpicam*
 image/image.hpp
 image/jpeg.cpp
+*test
