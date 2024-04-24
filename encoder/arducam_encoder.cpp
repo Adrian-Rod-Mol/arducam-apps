@@ -66,7 +66,7 @@ void ArducamEncoder::encodeArducam(ArducamEncoder::EncodeItem &item, uint16_t *&
 	auto input_band_3_it = input_image.begin() + band_height*current_res_->fileWidth;
 	auto input_band_4_it = input_image.begin() + band_height*current_res_->fileWidth + band_width;
 	// The memory allocation and destruction is probably needed
-	encoded_buffer = reinterpret_cast<uint16_t*>(malloc(current_res_->imageWidth*current_res_->imageHeight*sizeof(unit16_t)));
+	encoded_buffer = reinterpret_cast<uint16_t*>(malloc(current_res_->imageWidth*current_res_->imageHeight*sizeof(uint16_t)));
 	auto encoded_image = std::vector<uint16_t>(current_res_->imageWidth*current_res_->imageHeight);
 
 	auto out_band_1_it = encoded_image.begin();
