@@ -15,7 +15,7 @@
 ArducamEncoder::ArducamEncoder(const VideoOptions *options)
 	: Encoder(options), abortEncode_(false), abortOutput_(false), index_(0)
 {
-	if (auto res_map = resolution_map.find(options.resolution_key); res_map != resolution_map.end()) {
+	if (auto res_map = resolution_map_.find(options->resolution_key); res_map != resolution_map_.end()) {
 		current_res_ = std::make_unique<ResolutionPairs>(res_map->second);
 	}
 	output_thread_ = std::thread(&ArducamEncoder::outputThread, this);

@@ -3,6 +3,7 @@ rpicam_app_src += files([
     'h264_encoder.cpp',
     'mjpeg_encoder.cpp',
     'null_encoder.cpp',
+    'arducam_encoder.cpp',
 ])
 
 encoder_headers = files([
@@ -10,6 +11,7 @@ encoder_headers = files([
     'h264_encoder.hpp',
     'mjpeg_encoder.hpp',
     'null_encoder.hpp',
+    'arducam_encoder.hpp',
 ])
 
 enable_libav = get_option('enable_libav')
