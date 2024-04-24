@@ -5,7 +5,7 @@
  * arducam_raw.cpp - IMX477 stereo system raw video record app.
  */
 #include <chrono>
-#inculde <iostream>
+#include <iostream>
 
 #include "core/rpicam_encoder.hpp"
 #include "encoder/arducam_encoder.hpp"
@@ -73,7 +73,7 @@ static void event_loop(ArducamRaw &app)
 
 int main(int argc, char *argv[])
 {
-	srd::cerr << "Before try\n";
+	std::cerr << "Before try\n";
 	try
 	{
 		LOG(1, "Before creating the class");
