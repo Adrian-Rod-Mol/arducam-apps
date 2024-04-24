@@ -22,6 +22,10 @@ struct ResolutionPairs {
 	const unsigned int imageWidth;
 	const unsigned int imageHeight;
 };
+constexpr std::map<std::string, ResolutionPairs> resolution_map_ = {
+	{"LOW", ResolutionPairs(1344, 990, 1328, 990)},
+	{"MEDIUM", ResolutionPairs(2032, 1080, 2024, 1080)}
+};
 
 class ArducamEncoder : public Encoder
 {
@@ -34,10 +38,6 @@ public:
 private:
 	// When read from the buffer, some pixels don't contain information. This is an empirical map
 	// that pairs the memory size with the actual image size.
-	const std::map<std::string, ResolutionPairs> resolution_map_ = {
-		{"LOW", ResolutionPairs(1344, 990, 1328, 990)},
-		{"MEDIUM", ResolutionPairs(2032, 1080, 2024, 1080)}
-	};
 	std::unique_ptr<ResolutionPairs> current_res_;
 	// How many threads to use. Whichever thread is idle will pick up the next frame.
 	static const int NUM_ENC_THREADS = 4;

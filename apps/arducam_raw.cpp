@@ -6,9 +6,9 @@
  */
 #include <chrono>
 
-#include "../core/rpicam_encoder.hpp"
-#include "../encoder/arducam_encoder.hpp"
-#include "../output/output.hpp"
+#include "core/rpicam_encoder.hpp"
+#include "encoder/arducam_encoder.hpp"
+#include "output/output.hpp"
 
 using namespace std::placeholders;
 
@@ -74,7 +74,9 @@ int main(int argc, char *argv[])
 {
 	try
 	{
+		LOG(1, "Before creating the class");
 		ArducamRaw app;
+		LOG(1, "Before video options");
 		VideoOptions *options = app.GetOptions();
 		if (options->Parse(argc, argv))
 		{
