@@ -25,6 +25,7 @@ protected:
 
 // The main even loop for the application.
 static void second_event_loop(ArducamRaw &app) {
+	auto start_set_time = std::chrono::high_resolution_clock::now();
 	VideoOptions const *options = app.GetOptions();
 	std::unique_ptr<Output> output = std::unique_ptr<Output>(Output::Create(options));
 	app.SetEncodeOutputReadyCallback(std::bind(&Output::OutputReady, output.get(), _1, _2, _3, _4));
@@ -32,6 +33,9 @@ static void second_event_loop(ArducamRaw &app) {
 
 	app.StartEncoder();
 	app.StartCamera();
+	auto end_set_time = std::chrono::high_resolution_clock::now();
+	auto elapsed = end_set_time - start_set_time;
+	std::cout << "======================\n" << "Set up time " << std::chrono::milliseconds(elapsed.count()) << " us\n";
 	auto start_time = std::chrono::high_resolution_clock::now();
 	for (unsigned int count = 0; ; count++)
 	{
