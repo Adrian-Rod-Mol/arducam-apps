@@ -34,8 +34,8 @@ static void second_event_loop(ArducamRaw &app) {
 	app.StartEncoder();
 	app.StartCamera();
 	auto end_set_time = std::chrono::high_resolution_clock::now();
-	auto elapsed = end_set_time - start_set_time;
-	std::cout << "======================\n" << "Set up time " << duration_cast<std::chrono::milliseconds>(elapsed).count() << " ms\n";
+	auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end_set_time - start_set_time);
+	std::cout << "======================\n" << "Set up time " << elapsed.count() << " ms\n";
 	auto start_time = std::chrono::high_resolution_clock::now();
 	for (unsigned int count = 0; ; count++)
 	{
@@ -82,8 +82,8 @@ static void event_loop(ArducamRaw &app)
 	app.StartEncoder();
 	app.StartCamera();
 	auto end_set_time = std::chrono::high_resolution_clock::now();
-	auto elapsed = end_set_time - start_set_time;
-	std::cout << "======================\n" << "Set up time " << duration_cast<std::chrono::milliseconds>(elapsed).count() << " ms\n";
+	auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end_set_time - start_set_time);
+	std::cout << "======================\n" << "Set up time " << elapsed.count() << " ms\n";
 	auto start_time = std::chrono::high_resolution_clock::now();
 
 	for (unsigned int count = 0; ; count++)
