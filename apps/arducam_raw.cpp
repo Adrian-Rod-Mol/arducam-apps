@@ -70,7 +70,43 @@ static void event_loop(ArducamRaw &app)
 		{
 			app.StopCamera();
 			app.StopEncoder();
-			return;
+			break;
+		}
+
+		app.EncodeBuffer(std::get<CompletedRequestPtr>(msg.payload), app.RawStream());
+	}
+
+	start_time = std::chrono::high_resolution_clock::now();
+	options->shutter.set("2000us");
+	app.StartEncoder();
+	app.StartCamera();
+	for (unsigned int count = 0; ; count++)
+	{
+		ArducamRaw::Msg msg = app.Wait();
+
+		if (msg.type == RPiCamApp::MsgType::Timeout)
+		{
+			LOG_ERROR("ERROR: Device timeout detected, attempting a restart!!!");
+			app.StopCamera();
+			app.StartCamera();
+			continue;
+		}
+		if (msg.type != ArducamRaw::MsgType::RequestComplete)
+			throw std::runtime_error("unrecognised message!");
+		if (count == 0)
+		{
+			libcamera::StreamConfiguration const &cfg = app.RawStream()->configuration();
+			LOG(1, "Raw stream: " << cfg.size.width << "x" << cfg.size.height << " stride " << cfg.stride << " format "
+								  << cfg.pixelFormat.toString());
+		}
+
+		LOG(2, "Viewfinder frame " << count);
+		auto now = std::chrono::high_resolution_clock::now();
+		if (options->timeout && (now - start_time) > options->timeout.value)
+		{
+			app.StopCamera();
+			app.StopEncoder();
+			break;
 		}
 
 		app.EncodeBuffer(std::get<CompletedRequestPtr>(msg.payload), app.RawStream());
@@ -92,9 +128,6 @@ int main(int argc, char *argv[])
 			options->nopreview = true;
 			if (options->verbose >= 2)
 				options->Print();
-			event_loop(app);
-			app.CloseCamera();
-			options->shutter.set("2000us");
 			event_loop(app);
 		}
 	}
