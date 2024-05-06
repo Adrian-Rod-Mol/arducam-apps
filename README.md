@@ -17,3 +17,15 @@ Status
 ------
 
 [![ToT libcamera build/run test](https://github.com/raspberrypi/rpicam-apps/actions/workflows/rpicam-test.yml/badge.svg)](https://github.com/raspberrypi/rpicam-apps/actions/workflows/rpicam-test.yml)
+
+Use Examples
+------
+
+* Save Images on a File
+```shell
+./build/apps/arducam-raw -t 2000 -o /home/armolina/outputs/residual_test/name%05d.raw --mode 2028:1080:10:U --shutter 1ms  --gain 1 --awbgains 1,1 --resolution MEDIUM --nopreview --verbose 2 --segment 1
+```
+* Send Images to a TCP server
+```shell
+./build/apps/arducam-raw -t 2000 -o tcp://10.42.0.1:32233 --mode 2028:1080:10:U --shutter 1ms  --gain 1 --awbgains 1,1 --resolution MEDIUM --nopreview --verbose 2
+```
