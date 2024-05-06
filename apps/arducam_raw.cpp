@@ -30,12 +30,18 @@ static void event_loop(ArducamRaw &app)
 	VideoOptions const *options = app.GetOptions();
 
 	std::unique_ptr<Output> output = std::unique_ptr<Output>(Output::Create(options));
+	LOG(2, "After Creating Options");
 	app.SetEncodeOutputReadyCallback(std::bind(&Output::OutputReady, output.get(), _1, _2, _3, _4));
 	app.SetMetadataReadyCallback(std::bind(&Output::MetadataReady, output.get(), _1));
+	LOG(2, "After Setting Metadata");
 	app.OpenCamera();
+	LOG(2, "After Opening Camera");
 	app.ConfigureVideo(ArducamRaw::FLAG_VIDEO_RAW);
+	LOG(2, "After Configuring Video");
 	app.StartEncoder();
+	LOG(2, "After Starting Encoder");
 	app.StartCamera();
+	LOG(2, "After Starting Camera");
 	auto start_time = std::chrono::high_resolution_clock::now();
 
 	for (unsigned int count = 0; ; count++)
