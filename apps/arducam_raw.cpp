@@ -25,7 +25,9 @@ protected:
 
 // The main even loop for the application.
 static void second_event_loop(ArducamRaw &app) {
-	start_time = std::chrono::high_resolution_clock::now();
+	VideoOptions const *options = app.GetOptions();
+	
+	auto start_time = std::chrono::high_resolution_clock::now();
 
 	app.StartEncoder();
 	app.StartCamera();
