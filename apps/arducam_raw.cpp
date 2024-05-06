@@ -87,6 +87,7 @@ int main(int argc, char *argv[])
 			if (options->verbose >= 2)
 				options->Print();
 			event_loop(app);
+			app.CloseCamera();
 			options->shutter.set("2000us");
 			event_loop(app);
 		}
