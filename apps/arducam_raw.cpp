@@ -81,6 +81,7 @@ static void event_loop(ArducamRaw &app)
 	app.ConfigureVideo(ArducamRaw::FLAG_VIDEO_RAW);
 	app.StartEncoder();
 	app.StartCamera();
+	auto end_set_time = std::chrono::high_resolution_clock::now();
 	auto elapsed = end_set_time - start_set_time;
 	std::cout << "======================\n" << "Set up time " << elapsed.count() / 1000000 << " us\n";
 	auto start_time = std::chrono::high_resolution_clock::now();
