@@ -26,11 +26,13 @@ protected:
 // The main even loop for the application.
 static void second_event_loop(ArducamRaw &app) {
 	VideoOptions const *options = app.GetOptions();
-	
-	auto start_time = std::chrono::high_resolution_clock::now();
+	std::unique_ptr<Output> output = std::unique_ptr<Output>(Output::Create(options));
+	app.SetEncodeOutputReadyCallback(std::bind(&Output::OutputReady, output.get(), _1, _2, _3, _4));
+	app.SetMetadataReadyCallback(std::bind(&Output::MetadataReady, output.get(), _1));
 
 	app.StartEncoder();
 	app.StartCamera();
+	auto start_time = std::chrono::high_resolution_clock::now();
 	for (unsigned int count = 0; ; count++)
 	{
 		ArducamRaw::Msg msg = app.Wait();
