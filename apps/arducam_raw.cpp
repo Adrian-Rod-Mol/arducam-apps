@@ -35,7 +35,7 @@ static void second_event_loop(ArducamRaw &app) {
 	app.StartCamera();
 	auto end_set_time = std::chrono::high_resolution_clock::now();
 	auto elapsed = end_set_time - start_set_time;
-	std::cout << "======================\n" << "Set up time " << elapsed.count() * 1000 << " us\n";
+	std::cout << "======================\n" << "Set up time " << elapsed.count() / 1000000 << " us\n";
 	auto start_time = std::chrono::high_resolution_clock::now();
 	for (unsigned int count = 0; ; count++)
 	{
