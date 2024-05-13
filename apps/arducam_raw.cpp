@@ -89,8 +89,10 @@ int main(int argc, char *argv[])
 			options->nopreview = true;
 			if (options->verbose >= 2)
 				options->Print();
+			setup_capturing_pipeline(app);
 			setup_camera(app);
-			for (int i = 1; i <= 10; ++i) {
+			event_loop(app);
+			for (int i = 1; i <= 4; ++i) {
 				setup_capturing_pipeline(app);
 				event_loop(app);
 			}
