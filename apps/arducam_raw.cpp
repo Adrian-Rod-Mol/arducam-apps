@@ -6,6 +6,10 @@
  */
 #include <chrono>
 #include <iostream>
+#include <atomic>
+#include <mutex>
+#include <condition_variable>
+#include <thread>
 
 #include "core/rpicam_encoder.hpp"
 #include "encoder/arducam_encoder.hpp"
@@ -22,54 +26,88 @@ protected:
 	// Force the use of "null" encoder.
 	void createEncoder() { encoder_ = std::unique_ptr<Encoder>(new ArducamEncoder(GetOptions())); }
 };
-void setup_camera(ArducamRaw &app)
-{
-	app.OpenCamera();
-	app.ConfigureVideo(ArducamRaw::FLAG_VIDEO_RAW);
-}
 
-void setup_capturing_pipeline(ArducamRaw &app, std::unique_ptr<Output> &output)
+static void capturing_control(std::mutex& start_mtx, std::condition_variable& start_cv, std::mutex& nxt_mtx, std::condition_variable& nxt_cv, bool& next, bool& start, std::atomic<bool>& keep_capturing)
 {
-	app.SetEncodeOutputReadyCallback(std::bind(&Output::OutputReady, output.get(), _1, _2, _3, _4));
-	app.SetMetadataReadyCallback(std::bind(&Output::MetadataReady, output.get(), _1));
+	std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+	for (int i = 0; i < 5; ++i) {
+		std::cout << "Sending start capturing signal\n.";
+		{
+			std::lock_guard<std::mutex> lock(start_mtx);
+			start = true;
+		}
+		start_cv.notify_one();
+		{
+			std::unique_lock<std::mutex> lock(nxt_mtx);
+			nxt_cv.wait(lock, [&next] { return next; });
+			next = false;
+		}
+	}
+	keep_capturing = false;
+	start_cv.notify_one();
 }
 //// The main even loop for the application.
-void event_loop(ArducamRaw &app)
+static void event_loop(ArducamRaw &app, std::mutex& start_mtx, std::condition_variable& start_cv, std::mutex& nxt_mtx, std::condition_variable& nxt_cv, bool& next, bool& start, std::atomic<bool>& keep_capturing)
 {
-	VideoOptions const *options = app.GetOptions();
-	app.StartEncoder();
-	app.StartCamera();
-	auto start_time = std::chrono::high_resolution_clock::now();
-	for (unsigned int count = 0; ; count++)
-	{
-		ArducamRaw::Msg msg = app.Wait();
-
-		if (msg.type == RPiCamApp::MsgType::Timeout)
+	// The first time that the event loop is called, it should open the camera and configure the video streaming.
+	// When the capturing process is restarted, it must avoid calling these two functions
+	bool first = true;
+	while(keep_capturing) {
 		{
-			LOG_ERROR("ERROR: Device timeout detected, attempting a restart!!!");
-			app.StopCamera();
-			app.StartCamera();
-			continue;
+			std::unique_lock<std::mutex> lock(start_mtx);
+			start_cv.wait(lock, [&start, &keep_capturing] { return start | !keep_capturing; });
+			start = false;
 		}
-		if (msg.type != ArducamRaw::MsgType::RequestComplete)
-			throw std::runtime_error("unrecognised message!");
-		if (count == 0)
+		if (!keep_capturing) return;
+		VideoOptions const *options = app.GetOptions();
+		if (first) {
+			app.OpenCamera();
+			app.ConfigureVideo(ArducamRaw::FLAG_VIDEO_RAW);
+			first = false;
+		}
+		std::unique_ptr<Output> output = std::unique_ptr<Output>(Output::Create(options));
+		app.SetEncodeOutputReadyCallback(std::bind(&Output::OutputReady, output.get(), _1, _2, _3, _4));
+		app.SetMetadataReadyCallback(std::bind(&Output::MetadataReady, output.get(), _1));
+		app.StartEncoder();
+		app.StartCamera();
+		auto start_time = std::chrono::high_resolution_clock::now();
+		for (unsigned int count = 0; ; count++)
 		{
-			libcamera::StreamConfiguration const &cfg = app.RawStream()->configuration();
-			LOG(1, "Raw stream: " << cfg.size.width << "x" << cfg.size.height << " stride " << cfg.stride << " format "
-								  << cfg.pixelFormat.toString());
-		}
+			ArducamRaw::Msg msg = app.Wait();
 
-		LOG(2, "Viewfinder frame " << count);
-		auto now = std::chrono::high_resolution_clock::now();
-		if (options->timeout && (now - start_time) > options->timeout.value)
+			if (msg.type == RPiCamApp::MsgType::Timeout)
+			{
+				LOG_ERROR("ERROR: Device timeout detected, attempting a restart!!!");
+				app.StopCamera();
+				app.StartCamera();
+				continue;
+			}
+			if (msg.type != ArducamRaw::MsgType::RequestComplete)
+				throw std::runtime_error("unrecognised message!");
+			if (count == 0)
+			{
+				libcamera::StreamConfiguration const &cfg = app.RawStream()->configuration();
+				LOG(1, "Raw stream: " << cfg.size.width << "x" << cfg.size.height << " stride " << cfg.stride << " format "
+									  << cfg.pixelFormat.toString());
+			}
+
+			LOG(2, "Viewfinder frame " << count);
+			auto now = std::chrono::high_resolution_clock::now();
+			if (options->timeout && (now - start_time) > options->timeout.value)
+			{
+				app.StopCamera();
+				app.StopEncoder();
+				break;
+			}
+
+			app.EncodeBuffer(std::get<CompletedRequestPtr>(msg.payload), app.RawStream());
+		}
+		std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 		{
-			app.StopCamera();
-			app.StopEncoder();
-			return;
+			std::lock_guard<std::mutex> lock(nxt_mtx);
+			next = true;
 		}
-
-		app.EncodeBuffer(std::get<CompletedRequestPtr>(msg.payload), app.RawStream());
+		nxt_cv.notify_one();
 	}
 }
 
@@ -77,6 +115,14 @@ int main(int argc, char *argv[])
 {
 	try
 	{
+		std::mutex start_mtx;
+		std::condition_variable start_cv;
+		std::mutex nxt_mtx;
+		std::condition_variable nxt_cv;
+		bool next;
+		bool start;
+		std::atomic<bool> keep_capturing;
+
 		ArducamRaw app;
 
 		VideoOptions *options = app.GetOptions();
@@ -90,21 +136,9 @@ int main(int argc, char *argv[])
 				options->Print();
 
 			}
-			{
-				std::unique_ptr<Output> output =
-					std::unique_ptr<Output>(Output::Create(const_cast<VideoOptions const *>(options)));
-
-				setup_capturing_pipeline(app, output);
-				setup_camera(app);
-				event_loop(app);
-			}
-			for (int i = 1; i <= 4; ++i) {
-				std::unique_ptr<Output> output =
-					std::unique_ptr<Output>(Output::Create(const_cast<VideoOptions const *>(options)));
-
-				setup_capturing_pipeline(app, output);
-				event_loop(app);
-			}
+			std::thread control_thread(capturing_control, std::ref(start_mtx), std::ref(start_cv), std::ref(nxt_mtx), std::ref(nxt_cv), std::ref(next), std::ref(start), std::ref(keep_capturing));
+			event_loop(app, start_mtx, start_cv, nxt_mtx, nxt_cv, next, start, keep_capturing);
+			control_thread.join();
 		}
 	}
 	catch (std::exception const &e)
