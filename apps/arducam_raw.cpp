@@ -22,24 +22,25 @@ protected:
 	// Force the use of "null" encoder.
 	void createEncoder() { encoder_ = std::unique_ptr<Encoder>(new ArducamEncoder(GetOptions())); }
 };
+static void setup_camera(ArducamRaw &app) {
+	app.OpenCamera();
+	app.ConfigureVideo(ArducamRaw::FLAG_VIDEO_RAW);
+}
 
-//// The main even loop for the application.
-static void event_loop(ArducamRaw &app)
-{	auto start_set_time = std::chrono::high_resolution_clock::now();
+static void setup_capturing_pipeline(ArducamRaw &app) {
 	VideoOptions const *options = app.GetOptions();
 
 	std::unique_ptr<Output> output = std::unique_ptr<Output>(Output::Create(options));
 	app.SetEncodeOutputReadyCallback(std::bind(&Output::OutputReady, output.get(), _1, _2, _3, _4));
 	app.SetMetadataReadyCallback(std::bind(&Output::MetadataReady, output.get(), _1));
-	app.OpenCamera();
-	app.ConfigureVideo(ArducamRaw::FLAG_VIDEO_RAW);
+}
+//// The main even loop for the application.
+static void event_loop(ArducamRaw &app)
+{
+	VideoOptions const *options = app.GetOptions();
 	app.StartEncoder();
 	app.StartCamera();
-	auto end_set_time = std::chrono::high_resolution_clock::now();
-	auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end_set_time - start_set_time);
-	std::cout << "======================\n" << "Set up time " << elapsed.count() << " ms\n";
 	auto start_time = std::chrono::high_resolution_clock::now();
-
 	for (unsigned int count = 0; ; count++)
 	{
 		ArducamRaw::Msg msg = app.Wait();
@@ -88,7 +89,11 @@ int main(int argc, char *argv[])
 			options->nopreview = true;
 			if (options->verbose >= 2)
 				options->Print();
-			event_loop(app);
+			setup_camera(app);
+			for (int i = 1; i <= 10; ++i) {
+				setup_capturing_pipeline(app);
+				event_loop(app);
+			}
 		}
 	}
 	catch (std::exception const &e)
