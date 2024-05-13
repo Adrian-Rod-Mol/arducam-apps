@@ -678,9 +678,6 @@ void RPiCamApp::StartCamera()
 						  libcamera::Span<const int64_t, 2>({ frame_time, frame_time }));
 		}
 	}
-	if(controls_.get(controls::ExposureTime)) {
-		std::cout << "Controls not deleted after clear\n";
-	}
 	if (!controls_.get(controls::ExposureTime) && options_->shutter)
 		controls_.set(controls::ExposureTime, options_->shutter.get<std::chrono::microseconds>());
 	if (!controls_.get(controls::AnalogueGain) && options_->gain)
