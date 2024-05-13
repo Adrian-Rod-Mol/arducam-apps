@@ -93,6 +93,7 @@ int main(int argc, char *argv[])
 			{
 				std::unique_ptr<Output> output =
 					std::unique_ptr<Output>(Output::Create(const_cast<VideoOptions const *>(options)));
+
 				setup_capturing_pipeline(app, output);
 				setup_camera(app);
 				event_loop(app);
@@ -100,8 +101,8 @@ int main(int argc, char *argv[])
 			for (int i = 1; i <= 4; ++i) {
 				std::unique_ptr<Output> output =
 					std::unique_ptr<Output>(Output::Create(const_cast<VideoOptions const *>(options)));
+
 				setup_capturing_pipeline(app, output);
-				setup_capturing_pipeline(app);
 				event_loop(app);
 			}
 		}
