@@ -27,13 +27,17 @@ protected:
 	void createEncoder() { encoder_ = std::unique_ptr<Encoder>(new ArducamEncoder(GetOptions())); }
 };
 
-static void capturing_control(std::mutex& start_mtx, std::condition_variable& start_cv, std::mutex& nxt_mtx, std::condition_variable& nxt_cv, bool& next, bool& start, std::atomic<bool>& keep_capturing)
+static void capturing_control(VideoOptions *options, std::mutex& start_mtx, std::condition_variable& start_cv, std::mutex& nxt_mtx, std::condition_variable& nxt_cv, bool& next, bool& start, std::atomic<bool>& keep_capturing)
 {
 	std::this_thread::sleep_for(std::chrono::milliseconds(3000));
-	for (int i = 0; i < 5; ++i) {
+	unsigned int base_exposure = 5000;
+	for (int i = i; i <= 5; ++i) {
 		std::cout << "Sending start capturing signal\n.";
 		{
 			std::lock_guard<std::mutex> lock(start_mtx);
+			unsigned int current_exposure = base_exposure*i;
+			auto shutter_string = std::to_string(current_exposure) + "us";
+			options->shutter.set(shutter_string);
 			start = true;
 		}
 		start_cv.notify_one();
