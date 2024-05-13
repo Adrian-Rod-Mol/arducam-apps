@@ -140,7 +140,7 @@ int main(int argc, char *argv[])
 				options->Print();
 
 			}
-			std::thread control_thread(capturing_control, std::ref(start_mtx), std::ref(start_cv), std::ref(nxt_mtx), std::ref(nxt_cv), std::ref(next), std::ref(start), std::ref(keep_capturing));
+			std::thread control_thread(capturing_control, options, std::ref(start_mtx), std::ref(start_cv), std::ref(nxt_mtx), std::ref(nxt_cv), std::ref(next), std::ref(start), std::ref(keep_capturing));
 			event_loop(app, start_mtx, start_cv, nxt_mtx, nxt_cv, next, start, keep_capturing);
 			control_thread.join();
 		}
