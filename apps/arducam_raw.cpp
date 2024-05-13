@@ -22,12 +22,12 @@ protected:
 	// Force the use of "null" encoder.
 	void createEncoder() { encoder_ = std::unique_ptr<Encoder>(new ArducamEncoder(GetOptions())); }
 };
-static void setup_camera(ArducamRaw &app) {
+void setup_camera(ArducamRaw &app) {
 	app.OpenCamera();
 	app.ConfigureVideo(ArducamRaw::FLAG_VIDEO_RAW);
 }
 
-static void setup_capturing_pipeline(ArducamRaw &app) {
+void setup_capturing_pipeline(ArducamRaw &app) {
 	VideoOptions const *options = app.GetOptions();
 
 	std::unique_ptr<Output> output = std::unique_ptr<Output>(Output::Create(options));
@@ -35,7 +35,7 @@ static void setup_capturing_pipeline(ArducamRaw &app) {
 	app.SetMetadataReadyCallback(std::bind(&Output::MetadataReady, output.get(), _1));
 }
 //// The main even loop for the application.
-static void event_loop(ArducamRaw &app)
+void event_loop(ArducamRaw &app)
 {
 	VideoOptions const *options = app.GetOptions();
 	app.StartEncoder();
