@@ -22,13 +22,14 @@ protected:
 	// Force the use of "null" encoder.
 	void createEncoder() { encoder_ = std::unique_ptr<Encoder>(new ArducamEncoder(GetOptions())); }
 };
-void setup_camera(ArducamRaw &app) {
+void setup_camera(ArducamRaw &app)
+{
 	app.OpenCamera();
 	app.ConfigureVideo(ArducamRaw::FLAG_VIDEO_RAW);
 }
 
-void setup_capturing_pipeline(ArducamRaw &app, std::unique_ptr<Output> &output) {
-
+void setup_capturing_pipeline(ArducamRaw &app, std::unique_ptr<Output> &output)
+{
 	app.SetEncodeOutputReadyCallback(std::bind(&Output::OutputReady, output.get(), _1, _2, _3, _4));
 	app.SetMetadataReadyCallback(std::bind(&Output::MetadataReady, output.get(), _1));
 }
@@ -85,10 +86,11 @@ int main(int argc, char *argv[])
 			options->codec = "yuv420";
 			options->denoise = "cdn_off";
 			options->nopreview = true;
-			if (options->verbose >= 2)
+			if (options->verbose >= 2) {
 				options->Print();
-			{
+
 			}
+			{
 				std::unique_ptr<Output> output =
 					std::unique_ptr<Output>(Output::Create(const_cast<VideoOptions const *>(options)));
 				setup_capturing_pipeline(app, output);
