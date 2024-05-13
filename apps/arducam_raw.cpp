@@ -27,10 +27,8 @@ void setup_camera(ArducamRaw &app) {
 	app.ConfigureVideo(ArducamRaw::FLAG_VIDEO_RAW);
 }
 
-void setup_capturing_pipeline(ArducamRaw &app) {
-	VideoOptions const *options = app.GetOptions();
+void setup_capturing_pipeline(ArducamRaw &app, std::unique_ptr<Output> &output) {
 
-	std::unique_ptr<Output> output = std::unique_ptr<Output>(Output::Create(options));
 	app.SetEncodeOutputReadyCallback(std::bind(&Output::OutputReady, output.get(), _1, _2, _3, _4));
 	app.SetMetadataReadyCallback(std::bind(&Output::MetadataReady, output.get(), _1));
 }
@@ -89,10 +87,18 @@ int main(int argc, char *argv[])
 			options->nopreview = true;
 			if (options->verbose >= 2)
 				options->Print();
-			setup_capturing_pipeline(app);
-			setup_camera(app);
-			event_loop(app);
+			{
+			}
+				std::unique_ptr<Output> output =
+					std::unique_ptr<Output>(Output::Create(const_cast<VideoOptions const *>(options)));
+				setup_capturing_pipeline(app, output);
+				setup_camera(app);
+				event_loop(app);
+			}
 			for (int i = 1; i <= 4; ++i) {
+				std::unique_ptr<Output> output =
+					std::unique_ptr<Output>(Output::Create(const_cast<VideoOptions const *>(options)));
+				setup_capturing_pipeline(app, output);
 				setup_capturing_pipeline(app);
 				event_loop(app);
 			}
