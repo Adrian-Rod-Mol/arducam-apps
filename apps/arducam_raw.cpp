@@ -31,7 +31,7 @@ static void capturing_control(VideoOptions *options, std::mutex& start_mtx, std:
 {
 	std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 	unsigned int base_exposure = 5000;
-	for (int i = i; i <= 5; ++i) {
+	for (int i = 1; i <= 5; ++i) {
 		std::cout << "Sending start capturing signal\n.";
 		{
 			std::lock_guard<std::mutex> lock(start_mtx);
