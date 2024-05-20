@@ -10,6 +10,13 @@
 #include <mutex>
 #include <condition_variable>
 #include <thread>
+#include <queue>
+#include <cstring>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <string.h>
 
 #include "core/rpicam_encoder.hpp"
 #include "encoder/arducam_encoder.hpp"
@@ -27,42 +34,128 @@ protected:
 	void createEncoder() { encoder_ = std::unique_ptr<Encoder>(new ArducamEncoder(GetOptions())); }
 };
 
-static void capturing_control(VideoOptions *options, std::mutex& start_mtx, std::condition_variable& start_cv, std::mutex& nxt_mtx, std::condition_variable& nxt_cv, bool& next, bool& start, std::atomic<bool>& keep_capturing)
-{
-	std::this_thread::sleep_for(std::chrono::milliseconds(3000));
-	unsigned int base_exposure = 5000;
-	for (int i = 1; i <= 5; ++i) {
-		std::cout << "Sending start capturing signal\n.";
-		{
-			std::lock_guard<std::mutex> lock(start_mtx);
-			unsigned int current_exposure = base_exposure*i;
-			auto shutter_string = std::to_string(current_exposure) + "us";
-			options->shutter.set(shutter_string);
-			start = true;
-		}
-		start_cv.notify_one();
-		{
-			std::unique_lock<std::mutex> lock(nxt_mtx);
-			nxt_cv.wait(lock, [&next] { return next; });
-			next = false;
+struct Message {
+	Message() = default;
+	Message(std::string raw_message) {
+		auto position = raw_message.find(" = ");
+		if (position != std::string::npos) {
+			this->key = raw_message.substr(0, position);
+			this->value = std::stoi(raw_message.substr(position + 3));
+		} else {
+			this->key = raw_message;
+			this->value = 0;
 		}
 	}
-	keep_capturing = false;
-	start_cv.notify_one();
+	std::string key;
+	unsigned int value;
+};
+static int connect_to_message_server(VideoOptions *options)
+{
+	char protocol[4];
+	int start, end, a, b, c, d, port;
+	if (sscanf(options->message_ip.c_str(), "%3s://%n%d.%d.%d.%d%n:%d", protocol, &start, &a, &b, &c, &d, &end, &port) != 6)
+		throw std::runtime_error("bad network address " + options->message_ip);
+	std::string address = options->message_ip.substr(start, end - start);
+	if (strcmp(protocol, "tcp") == 0) {
+		struct sockaddr_in msgServerAddr;
+		msgServerAddr.sin_family = AF_INET;
+		msgServerAddr.sin_port = htons(port);
+		msgServerAddr.sin_addr.s_addr = inet_addr(address.c_str());
+
+		int msg_socket = socket(AF_INET, SOCK_STREAM, 0);
+		if (msg_socket  == -1) {
+			throw std::runtime_error("message socket creation failed");
+		}
+
+		if (connect(msg_socket , (struct sockaddr*)&msgServerAddr, sizeof(msgServerAddr)) == -1) {
+			close(msg_socket);
+			throw std::runtime_error("connection to server failed");
+		}
+		return msg_socket;
+	} else
+		throw std::runtime_error("unrecognised network protocol " + options->message_ip);
+}
+static void receive_messages(int msg_socket, std::mutex& mtx, std::condition_variable& cv, std::queue<Message> &msg_queue, std::atomic<bool>& keep_process)
+{
+	while (keep_process) {
+		char buffer[1024];
+		int bytesReceived = recv(msg_socket, buffer, sizeof(buffer), 0);
+		// This condition prevents the code to put in a queue empty messages sent by the server.
+		if (bytesReceived >= 3) {
+			buffer[bytesReceived] = '\0';
+			auto message = Message(std::string(buffer));
+			{
+				std::lock_guard<std::mutex> lock(mtx);
+				msg_queue.push(message);
+			}
+			cv.notify_one();
+		} else {
+			std::cerr << "Connection closed by server or error occurred\n";
+			break;
+		}
+	}
+}
+
+static void capturing_control(VideoOptions *options, std::queue<Message> &msg_queue, std::mutex& msg_mtx, std::condition_variable& msg_cv, std::mutex& img_mtx, std::condition_variable& img_cv, bool& take_images, std::atomic<bool>& keep_process)
+{
+	while (keep_process) {
+		{
+			std::unique_lock<std::mutex> lock(msg_mtx);
+			msg_cv.wait(lock, [&msg_queue]{ return !msg_queue.empty(); });
+		}
+		Message msg;
+		{
+			std::lock_guard <std::mutex> lock(msg_mtx);
+			msg = msg_queue.front();
+			msg_queue.pop();
+		}
+		LOG(2, "Received message: " << msg.key);
+		if (msg.key == "CLOSE") {
+			keep_process = false;
+			{
+				std::lock_guard<std::mutex> lock(img_mtx);
+				take_images = false;
+			}
+			img_cv.notify_one();
+			LOG(1, "Server closed connection.");
+		} else if (msg.key == "START") {
+			{
+				std::lock_guard<std::mutex> lock(img_mtx);
+				take_images = true;
+			}
+			img_cv.notify_one();
+		} else if (msg.key == "STOP") {
+			{
+				std::lock_guard<std::mutex> lock(img_mtx);
+				take_images = false;
+			}
+		} else if (msg.key == "EXPOSURE") {
+			if (!take_images) {
+				{
+					std::lock_guard<std::mutex> lock(img_mtx);
+					auto shutter_string = std::to_string(msg.key) + "us";
+					options->shutter.set(shutter_string);
+				}
+			} else {
+				LOG(1, "Can't change camera parameters while capturing.");
+			}
+		} else {
+			LOG(1, "Unrecognized message: " << msg.key);
+		}
+	}
 }
 //// The main even loop for the application.
-static void event_loop(ArducamRaw &app, std::mutex& start_mtx, std::condition_variable& start_cv, std::mutex& nxt_mtx, std::condition_variable& nxt_cv, bool& next, bool& start, std::atomic<bool>& keep_capturing)
+static void event_loop(ArducamRaw &app, std::mutex& img_mtx, std::condition_variable& img_cv, bool& take_images, std::atomic<bool>& keep_process)
 {
 	// The first time that the event loop is called, it should open the camera and configure the video streaming.
 	// When the capturing process is restarted, it must avoid calling these two functions
 	bool first = true;
-	while(keep_capturing) {
+	while(keep_process) {
 		{
-			std::unique_lock<std::mutex> lock(start_mtx);
-			start_cv.wait(lock, [&start, &keep_capturing] { return start | !keep_capturing; });
-			start = false;
+			std::unique_lock<std::mutex> lock(img_mtx);
+			img_cv.wait(lock, [&take_images, &keep_process] { return take_images | !keep_process; });
 		}
-		if (!keep_capturing) return;
+		if (!keep_process) return;
 		VideoOptions const *options = app.GetOptions();
 		if (first) {
 			app.OpenCamera();
@@ -97,7 +190,7 @@ static void event_loop(ArducamRaw &app, std::mutex& start_mtx, std::condition_va
 
 			LOG(2, "Viewfinder frame " << count);
 			auto now = std::chrono::high_resolution_clock::now();
-			if (options->timeout && (now - start_time) > options->timeout.value)
+			if ((options->timeout && (now - start_time) > options->timeout.value) || !take_images)
 			{
 				app.StopCamera();
 				app.StopEncoder();
@@ -106,12 +199,6 @@ static void event_loop(ArducamRaw &app, std::mutex& start_mtx, std::condition_va
 
 			app.EncodeBuffer(std::get<CompletedRequestPtr>(msg.payload), app.RawStream());
 		}
-		std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-		{
-			std::lock_guard<std::mutex> lock(nxt_mtx);
-			next = true;
-		}
-		nxt_cv.notify_one();
 	}
 }
 
@@ -119,16 +206,16 @@ int main(int argc, char *argv[])
 {
 	try
 	{
-		std::mutex start_mtx;
-		std::condition_variable start_cv;
-		std::mutex nxt_mtx;
-		std::condition_variable nxt_cv;
-		bool next;
-		bool start;
-		std::atomic<bool> keep_capturing;
+		std::mutex msg_mtx;
+		std::condition_variable msg_cv;
+		std::mutex img_mtx;
+		std::condition_variable img_cv;
+		std::queue<Message> msg_queue;
+
+		bool take_images;
+		std::atomic<bool> keep_process;
 
 		ArducamRaw app;
-
 		VideoOptions *options = app.GetOptions();
 		if (options->Parse(argc, argv))
 		{
@@ -136,13 +223,27 @@ int main(int argc, char *argv[])
 			options->codec = "yuv420";
 			options->denoise = "cdn_off";
 			options->nopreview = true;
-			if (options->verbose >= 2) {
+			if (options->verbose >= 2)
+			{
 				options->Print();
-
 			}
-			std::thread control_thread(capturing_control, options, std::ref(start_mtx), std::ref(start_cv), std::ref(nxt_mtx), std::ref(nxt_cv), std::ref(next), std::ref(start), std::ref(keep_capturing));
-			event_loop(app, start_mtx, start_cv, nxt_mtx, nxt_cv, next, start, keep_capturing);
+			auto msg_socket = connect_to_message_server(options);
+			std::thread receiver_thread(receive_messages, msg_socket, std::ref(msg_mtx), std::ref(msg_cv), std::ref(msg_queue), std::ref(keep_process));
+			{
+				std::unique_lock<std::mutex> lock(msg_mtx);
+				msg_cv.wait(lock, [&msg_queue]{ return !msg_queue.empty(); });
+			}
+			{
+				std::lock_guard <std::mutex> lock(msg_mtx);
+				auto resolution_message = msg_queue.front();
+				msg_queue.pop();
+				options->resolution_key = resolution_message.key;
+			}
+			std::thread control_thread(capturing_control, options, std::ref(msg_queue), std::ref(msg_mtx), std::ref(msg_cv), std::ref(img_mtx), std::ref(img_cv), std::ref(take_images), std::ref(keep_process));
+			event_loop(app, img_mtx, img_cv, take_images, keep_process);
 			control_thread.join();
+			receiver_thread.join();
+
 		}
 	}
 	catch (std::exception const &e)
