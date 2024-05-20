@@ -124,6 +124,8 @@ struct VideoOptions : public Options
 			 "Run for the exact number of frames specified. This will override any timeout set.")
 			("resolution,r", value<std::string>(&resolution_key)->default_value("LOW"),
 				   "Select the captured image resolution between LOW or MEDIUM")
+			("message-ip", value<std::string>(&message_ip),
+				   "Direction and port of the server in which the message are posted.")
 #if LIBAV_PRESENT
 			("libav-video-codec", value<std::string>(&libav_video_codec)->default_value("h264_v4l2m2m"),
 			 "Sets the libav video codec to use. "
@@ -195,6 +197,7 @@ struct VideoOptions : public Options
 	uint32_t frames;
 
 	std::string resolution_key;
+	std::string message_ip;
 
 	virtual bool Parse(int argc, char *argv[]) override
 	{
