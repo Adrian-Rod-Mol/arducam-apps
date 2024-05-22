@@ -133,7 +133,7 @@ static void capturing_control(VideoOptions *options, std::queue<Message> &msg_qu
 			if (!take_images) {
 				{
 					std::lock_guard<std::mutex> lock(img_mtx);
-					auto shutter_string = std::to_string(msg.key) + "us";
+					auto shutter_string = std::to_string(msg.value) + "us";
 					options->shutter.set(shutter_string);
 				}
 			} else {
