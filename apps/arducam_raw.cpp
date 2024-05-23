@@ -194,6 +194,9 @@ static void event_loop(ArducamRaw &app, std::mutex& img_mtx, std::condition_vari
 			{
 				app.StopCamera();
 				app.StopEncoder();
+				if (options->timeout && (now - start_time) > options->timeout.value) {
+					return;
+				}
 				break;
 			}
 
@@ -212,8 +215,8 @@ int main(int argc, char *argv[])
 		std::condition_variable img_cv;
 		std::queue<Message> msg_queue;
 
-		bool take_images;
-		std::atomic<bool> keep_process;
+		bool take_images = false;
+		std::atomic<bool> keep_process = true;
 
 		ArducamRaw app;
 		VideoOptions *options = app.GetOptions();
@@ -227,23 +230,34 @@ int main(int argc, char *argv[])
 			{
 				options->Print();
 			}
-			auto msg_socket = connect_to_message_server(options);
-			std::thread receiver_thread(receive_messages, msg_socket, std::ref(msg_mtx), std::ref(msg_cv), std::ref(msg_queue), std::ref(keep_process));
-			{
-				std::unique_lock<std::mutex> lock(msg_mtx);
-				msg_cv.wait(lock, [&msg_queue]{ return !msg_queue.empty(); });
+			if (options->message_ip) {
+				auto msg_socket = connect_to_message_server(options);
+				std::thread receiver_thread(receive_messages, msg_socket, std::ref(msg_mtx), std::ref(msg_cv), std::ref(msg_queue), std::ref(keep_process));
+				{
+					std::unique_lock<std::mutex> lock(msg_mtx);
+					msg_cv.wait(lock, [&msg_queue]{ return !msg_queue.empty(); });
+				}
+				{
+					std::lock_guard <std::mutex> lock(msg_mtx);
+					auto resolution_message = msg_queue.front();
+					msg_queue.pop();
+					options->resolution_key = resolution_message.key;
+				}
+				std::thread control_thread(capturing_control, options, std::ref(msg_queue), std::ref(msg_mtx), std::ref(msg_cv), std::ref(img_mtx), std::ref(img_cv), std::ref(take_images), std::ref(keep_process));
+			} else {
+				{
+					std::lock_guard<std::mutex> lock(img_mtx);
+					take_images = true;
+				}
+				img_cv.notify_one();
 			}
-			{
-				std::lock_guard <std::mutex> lock(msg_mtx);
-				auto resolution_message = msg_queue.front();
-				msg_queue.pop();
-				options->resolution_key = resolution_message.key;
-			}
-			std::thread control_thread(capturing_control, options, std::ref(msg_queue), std::ref(msg_mtx), std::ref(msg_cv), std::ref(img_mtx), std::ref(img_cv), std::ref(take_images), std::ref(keep_process));
+			
 			event_loop(app, img_mtx, img_cv, take_images, keep_process);
-			control_thread.join();
-			receiver_thread.join();
 
+			if (options->message_ip) {
+				control_thread.join();
+				receiver_thread.join();
+			}
 		}
 	}
 	catch (std::exception const &e)
