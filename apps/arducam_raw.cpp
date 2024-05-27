@@ -230,7 +230,7 @@ int main(int argc, char *argv[])
 			{
 				options->Print();
 			}
-			if (options->message_ip) {
+			if (options->message_ip != "none") {
 				auto msg_socket = connect_to_message_server(options);
 				std::thread receiver_thread(receive_messages, msg_socket, std::ref(msg_mtx), std::ref(msg_cv), std::ref(msg_queue), std::ref(keep_process));
 				{
