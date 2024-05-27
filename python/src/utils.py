@@ -68,7 +68,7 @@ def generate_new_capturing_folder(output_path: Path) -> Path:
         capturing_path = output_path.joinpath(
             dt.datetime.now().strftime('%Y_%m_%d__%H_%M') + str(folder_count))
         folder_count += 1
-
+    capturing_path.mkdir()
     return capturing_path
 
 
