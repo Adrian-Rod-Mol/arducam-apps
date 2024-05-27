@@ -66,10 +66,15 @@ static int connect_to_message_server(VideoOptions *options)
 		if (msg_socket  == -1) {
 			throw std::runtime_error("message socket creation failed");
 		}
-
-		if (connect(msg_socket , (struct sockaddr*)&msgServerAddr, sizeof(msgServerAddr)) == -1) {
-			close(msg_socket);
-			throw std::runtime_error("connection to server failed");
+		for (;;) {
+			try {
+				if (connect(msg_socket , (struct sockaddr*)&msgServerAddr, sizeof(msgServerAddr)) == -1) {
+					std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+				} else break;
+			} catch (const std::exception& e) {
+				close(msg_socket);
+				throw std::runtime_error(e.what());
+			}
 		}
 		return msg_socket;
 	} else
