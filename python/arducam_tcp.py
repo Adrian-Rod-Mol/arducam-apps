@@ -283,7 +283,9 @@ def main():
                             file_path = capturing_folder.joinpath(filename)
                             image.tofile(file_path)
                             save_count += 1
-                    print_terminal(0, f"Mean time between calls to show image: {mean_call_time/show_count/10**6} ms")
+                    if show_count != 0:
+                        print_terminal(0, f"Mean time between calls to show image: {mean_call_time/show_count/10**6} ms")
+                        
                     save_count = 0
                     show_count = 0
 
