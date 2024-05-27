@@ -244,19 +244,16 @@ int main(int argc, char *argv[])
 					options->resolution_key = resolution_message.key;
 				}
 				std::thread control_thread(capturing_control, options, std::ref(msg_queue), std::ref(msg_mtx), std::ref(msg_cv), std::ref(img_mtx), std::ref(img_cv), std::ref(take_images), std::ref(keep_process));
+				event_loop(app, img_mtx, img_cv, take_images, keep_process);
+				control_thread.join();
+				receiver_thread.join();
 			} else {
 				{
 					std::lock_guard<std::mutex> lock(img_mtx);
 					take_images = true;
 				}
 				img_cv.notify_one();
-			}
-			
-			event_loop(app, img_mtx, img_cv, take_images, keep_process);
-
-			if (options->message_ip) {
-				control_thread.join();
-				receiver_thread.join();
+				event_loop(app, img_mtx, img_cv, take_images, keep_process);
 			}
 		}
 	}
