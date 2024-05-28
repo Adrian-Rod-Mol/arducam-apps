@@ -61,6 +61,13 @@ def show_image(
     cv.waitKey(1)
 
 
+def read_arducam_image(path: Path, current_res: dict) -> np.ndarray:
+    raw_image = np.fromfile(path, dtype=np.uint8)
+    char_image = raw_image.reshape(4, current_res["height"], current_res["width"])
+    image = char_image.astype(np.uint16)
+    return image
+
+
 def generate_new_capturing_folder(output_path: Path) -> Path:
     capturing_path = output_path.joinpath(dt.datetime.now().strftime('%Y_%m_%d__%H_%M'))
     folder_count = 0

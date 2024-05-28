@@ -24,7 +24,8 @@ from src.terminal_tcp_interface import (
 
 resolution_map = {
     "LOW": {"width": 1328, "height": 990, "band_width": int(1328 / 2), "band_height": int(990 / 2), "framerate": 30},
-    "MEDIUM": {"width": 2024, "height": 1080, "band_width": int(2024 / 2), "band_height": int(1080 / 2), "framerate": 15}
+    "MEDIUM": {"width": 2024, "height": 1520, "band_width": int(2024 / 2), "band_height": int(1520 / 2), "framerate": 15},
+    "HIGH": {"width": 4056, "height": 3040, "band_width": int(4056 / 2), "band_height": int(3040 / 2), "framerate": 15}
 }
 
 TCP_PORT = 32233
