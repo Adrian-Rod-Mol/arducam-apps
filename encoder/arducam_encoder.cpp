@@ -21,7 +21,7 @@
 static const std::map<std::string, ResolutionPairs> resolution_map_ = {
 	{"LOW", ResolutionPairs(1344, 990, 1328, 990)},
 	{"MEDIUM", ResolutionPairs(2032, 1520, 2024, 1520)},
-	{"HIGH ", ResolutionPairs(4064, 3040, 4056, 3040)}
+	{"HIGH ", ResolutionPairs(4060, 3040, 4056, 3040)}
 };
 
 ArducamEncoder::ArducamEncoder(const VideoOptions *options)
