@@ -241,7 +241,7 @@ struct VideoOptions : public Options
 			LOG(1, "Overriding H.264 level 4.2");
 			level = "4.2";
 		}
-		if (resolution_key != "LOW" && resolution_key != "MEDIUM"){
+		if (resolution_key != "LOW" && resolution_key != "MEDIUM" && resolution_key != "HIGH"){
 			std::cerr << "Check if this is reached" << std::endl;
 			throw std::runtime_error("unrecognised resolution key " + resolution_key);
 		}
