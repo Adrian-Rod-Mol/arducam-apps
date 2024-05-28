@@ -21,7 +21,7 @@
 static const std::map<std::string, ResolutionPairs> resolution_map_ = {
 	{"LOW", ResolutionPairs(1344, 990, 1328, 990)},
 	{"MEDIUM", ResolutionPairs(2032, 1520, 2024, 1520)},
-	{"HIGH ", ResolutionPairs(4060, 3040, 4056, 3040)}
+	{"HIGH ", ResolutionPairs(4064, 3040, 4056, 3040)}
 };
 
 ArducamEncoder::ArducamEncoder(const VideoOptions *options)
@@ -56,6 +56,7 @@ void ArducamEncoder::EncodeBuffer(int fd, size_t size, void *mem, StreamInfo con
 
 void ArducamEncoder::encodeArducam(ArducamEncoder::EncodeItem &item, uint16_t *&encoded_buffer, size_t &buffer_len)
 {
+	std::cout << "Buffer length: " << item.info  << " \n";
 	const auto band_width = current_res_->imageWidth/2;
 	const auto band_height = current_res_->imageHeight/2;
 
