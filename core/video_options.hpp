@@ -123,7 +123,7 @@ struct VideoOptions : public Options
 			("frames", value<unsigned int>(&frames)->default_value(0),
 			 "Run for the exact number of frames specified. This will override any timeout set.")
 			("resolution,r", value<std::string>(&resolution_key)->default_value("LOW"),
-				   "Select the captured image resolution between LOW or MEDIUM")
+				   "Select the captured image resolution between LOW, MEDIUM or HIGH")
 			("message-ip", value<std::string>(&message_ip)->default_value("none"),
 				   "Direction and port of the server in which the message are posted.")
 #if LIBAV_PRESENT
