@@ -60,6 +60,7 @@ void ArducamEncoder::encodeArducam(ArducamEncoder::EncodeItem &item, uint16_t *&
 	const auto band_height = current_res_->imageHeight/2;
 
 	auto img_ptr = reinterpret_cast<uint16_t*>(item.mem);
+	std::cout << "Segmentation fault before vector." << std::endl;
 	auto input_image = std::vector<uint16_t>(img_ptr, img_ptr + current_res_->fileWidth*current_res_->fileHeight);
 
 	auto input_band_1_it = input_image.begin();
