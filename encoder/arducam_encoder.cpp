@@ -56,7 +56,6 @@ void ArducamEncoder::EncodeBuffer(int fd, size_t size, void *mem, StreamInfo con
 
 void ArducamEncoder::encodeArducam(ArducamEncoder::EncodeItem &item, uint16_t *&encoded_buffer, size_t &buffer_len)
 {
-	std::cout << "Buffer length: " << item.info  << " \n";
 	const auto band_width = current_res_->imageWidth/2;
 	const auto band_height = current_res_->imageHeight/2;
 
