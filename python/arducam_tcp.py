@@ -240,7 +240,6 @@ def main():
     print_terminal(0, "Waiting for client connection...")
     msg_conn, msg_addr = msg_server.accept()
     print_terminal(0, "A client has connected to the message queue.")
-    msg_queue.put(Message(False, args.resolution))
 
     # Define default output or capturing folder to prevent errors and undefined behaviour
     output_folder = Path(args.output_folder)
