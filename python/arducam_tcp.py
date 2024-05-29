@@ -25,11 +25,12 @@ from src.terminal_tcp_interface import (
 resolution_map = {
     "LOW": {"width": 1328, "height": 990, "band_width": int(1328 / 2), "band_height": int(990 / 2), "framerate": 30},
     "MEDIUM": {"width": 2024, "height": 1520, "band_width": int(2024 / 2), "band_height": int(1520 / 2), "framerate": 15},
-    "HIGH": {"width": 4056, "height": 3040, "band_width": int(4056 / 2), "band_height": int(3040 / 2), "framerate": 15}
+    "HIGH": {"width": 4056, "height": 3040, "band_width": int(4056 / 2), "band_height": int(3040 / 2), "framerate": 5}
 }
 
 TCP_PORT = 32233
 TCP_MSG_PORT = 32211
+TCP_CONF_PORT = 32121
 IMG_BYTES = 4371840
 LOOP_TIMEOUT = 2
 
@@ -212,6 +213,25 @@ def main():
     except KeyError:
         print("Input resolution not implemented")
         return
+
+    # Sending configuration to Raspberry
+    cnf_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    cnf_server.bind((args.ip, TCP_CONF_PORT))
+    cnf_server.listen(1)
+    print_terminal(0, "Waiting for connection to configure...")
+    cnf_conn, cnf_addr = cnf_server.accept()
+    conf_message = ""
+    print_terminal(0, "Configuration client connected.")
+    if args.resolution == "LOW":
+        conf_message = "--mode 1332:990:10:U --resolution LOW"
+    elif args.resolution == "MEDIUM":
+        conf_message = "--mode 2028:1520:12:U --resolution MEDIUM"
+    elif args.resolution == "HIGH":
+        conf_message = "--mode 4056:3040:12:U --resolution HIGH"
+    encoded_conf = conf_message.encode('utf-8')
+    cnf_conn.send(encoded_conf)
+    time.sleep(1)
+    cnf_conn.close()
 
     msg_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     msg_server.bind((args.ip, TCP_MSG_PORT))

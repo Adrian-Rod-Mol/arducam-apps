@@ -1,0 +1,14 @@
+[Unit]
+Description=Starts the camera capturing code if the Jetson is connected.
+After=network.target
+[Install]
+WantedBy=multi-user.target
+[Service]
+Type=simple
+ExecStart=/home/armolina/projects/arducam-apps/startup_script/build/launch_in_startup
+WorkingDirectory=/home/armolina/projects/arducam-apps/startup_script/
+Restart=always
+RestartSec=10s
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=%n
