@@ -9,8 +9,9 @@ from src.utils import (
 
 resolution_map = {
     "LOW": {"width": 1328, "height": 990, "band_width": int(1328 / 2), "band_height": int(990 / 2), "framerate": 30},
-    "MEDIUM": {"width": 2024, "height": 1520, "band_width": int(2024 / 2), "band_height": int(1520 / 2), "framerate": 15},
-    "HIGH": {"width": 4064, "height": 3040, "band_width": int(4064 / 2), "band_height": int(3040 / 2), "framerate": 15}
+    "MEDIUM": {"width": 2024, "height": 1520, "band_width": int(2024 / 2), "band_height": int(1520 / 2),
+               "framerate": 15},
+    "HIGH": {"width": 4056, "height": 3040, "band_width": int(4056 / 2), "band_height": int(3040 / 2), "framerate": 15}
 }
 
 
@@ -72,10 +73,9 @@ def main():
     image_path_list = input_path.glob("*.raw")
     image_path_sorted = sorted(image_path_list, key=lambda x: int(x.stem))
     for image_path in image_path_sorted:
-        print(image_path)
         image = read_arducam_image(image_path, current_res)
-        #mosaic = generate_arducam_mosaic(image)
-        show_image("Arducam", image, args.ms, window_size, (0, 0))
+        mosaic = generate_arducam_mosaic(image)
+        show_image("Arducam", mosaic, args.ms, window_size, (0, 0))
 
 
 if __name__ == "__main__":

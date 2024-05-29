@@ -63,11 +63,8 @@ def show_image(
 
 def read_arducam_image(path: Path, current_res: dict) -> np.ndarray:
     raw_image = np.fromfile(path, dtype=np.uint16)
-    raw_image = raw_image.reshape(current_res["height"], current_res["width"])
-
-    image_scaled = (raw_image.astype(np.float32) / 4095.0) * 255.0
-    image_to_split = image_scaled.astype(np.uint8)
-    return image_to_split
+    raw_image = raw_image.reshape(4, current_res["band_height"], current_res["band_width"])
+    return raw_image
 
 
 def generate_new_capturing_folder(output_path: Path) -> Path:
@@ -93,6 +90,7 @@ def generate_arducam_mosaic(image: np.ndarray) -> np.ndarray:
     mosaic[band_height:2 * band_height, band_width:2 * band_width] = image_to_split[3, :, :]
 
     return mosaic
+
 
 def arducam_mosaic_thread(input_queue: queue.Queue, output_queue: queue.Queue, stop_event : threading.Event):
     while not stop_event.is_set():

@@ -7,4 +7,4 @@ image/jpeg.cpp
 *test
 venv
 python/outputs
-__pycache__
+*.pyc

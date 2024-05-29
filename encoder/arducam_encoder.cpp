@@ -126,12 +126,10 @@ void ArducamEncoder::encodeThread(int num)
 					encode_cond_var_.wait_for(lock, 200ms);
 			}
 		}
-		LOG(1, "Before creating the nullptr.");
 		// Encode the buffer.
 		uint16_t *encoded_buffer = nullptr;
 		size_t buffer_len = 0;
 		auto start_time = std::chrono::high_resolution_clock::now();
-		LOG(1, "Before calling the encoder.");
 		encodeArducam(encode_item, encoded_buffer, buffer_len);
 		encode_time += (std::chrono::high_resolution_clock::now() - start_time);
 		frames++;
