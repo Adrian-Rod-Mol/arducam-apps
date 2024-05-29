@@ -6,6 +6,10 @@
 #include <chrono>
 #include <stdexcept>
 #include <vector>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
 
 std::string exec(const char* cmd) {
   char buffer[128];
