@@ -57,12 +57,9 @@ void ArducamEncoder::EncodeBuffer(int fd, size_t size, void *mem, StreamInfo con
 
 void ArducamEncoder::encodeArducam(ArducamEncoder::EncodeItem &item, uint16_t *&encoded_buffer, size_t &buffer_len)
 {
-	LOG(1, "Before accessing current resolution");
 	const auto band_width = current_res_->imageWidth/2;
 	const auto band_height = current_res_->imageHeight/2;
-	LOG(1, "Before casting to uint16.");
 	auto img_ptr = reinterpret_cast<uint16_t*>(item.mem);
-	std::cout << "Segmentation fault before vector." << std::endl;
 	auto input_image = std::vector<uint16_t>(img_ptr, img_ptr + current_res_->fileWidth*current_res_->fileHeight);
 
 	auto input_band_1_it = input_image.begin();
