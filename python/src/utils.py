@@ -58,14 +58,16 @@ def show_image(
     if window_position != (-1, -1):
         cv.moveWindow(name, *window_position)
     cv.imshow(name, image)
-    cv.waitKey(1)
+    cv.waitKey(ms_sleep)
 
 
 def read_arducam_image(path: Path, current_res: dict) -> np.ndarray:
-    raw_image = np.fromfile(path, dtype=np.uint8)
-    char_image = raw_image.reshape(4, current_res["height"], current_res["width"])
-    image = char_image.astype(np.uint16)
-    return image
+    raw_image = np.fromfile(path, dtype=np.uint16)
+    raw_image = raw_image.reshape(current_res["height"], current_res["width"])
+
+    image_scaled = (raw_image.astype(np.float32) / 4095.0) * 255.0
+    image_to_split = image_scaled.astype(np.uint8)
+    return image_to_split
 
 
 def generate_new_capturing_folder(output_path: Path) -> Path:

@@ -6,3 +6,5 @@ image/image.hpp
 image/jpeg.cpp
 *test
 venv
+python/outputs
+__pycache__

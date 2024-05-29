@@ -195,6 +195,7 @@ static void event_loop(ArducamRaw &app, std::mutex& img_mtx, std::condition_vari
 
 			LOG(2, "Viewfinder frame " << count);
 			auto now = std::chrono::high_resolution_clock::now();
+			LOG(1, "Some problem with the timer.");
 			if ((options->timeout && (now - start_time) > options->timeout.value) || !take_images)
 			{
 				app.StopCamera();
@@ -204,7 +205,7 @@ static void event_loop(ArducamRaw &app, std::mutex& img_mtx, std::condition_vari
 				}
 				break;
 			}
-
+			LOG(1, "Before the call to encode buffer.");
 			app.EncodeBuffer(std::get<CompletedRequestPtr>(msg.payload), app.RawStream());
 		}
 	}
