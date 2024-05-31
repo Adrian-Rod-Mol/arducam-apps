@@ -103,7 +103,9 @@ async def async_terminal(user_action_map: List[UserAction], process_msg_queue: a
     print_terminal(0, "Message receiving thread finished correctly.")
 
 
-async def async_send_message(msg_writer: asyncio.StreamWriter, msg_queue: asyncio.Queue, stop: asyncio.Event):
+async def async_send_message(
+        msg_reader: asyncio.StreamReader, msg_writer: asyncio.StreamWriter,
+        msg_queue: asyncio.Queue, stop: asyncio.Event):
     """Send the messages contained in the msg_queue to the camera to control its behaviour.
 
     input:
@@ -113,6 +115,7 @@ async def async_send_message(msg_writer: asyncio.StreamWriter, msg_queue: asynci
 
     return:
         None"""
+    print_terminal(0, "A client has connected to the message queue.")
     try:
         while not stop.is_set():
             msg = await msg_queue.get()
@@ -127,4 +130,16 @@ async def async_send_message(msg_writer: asyncio.StreamWriter, msg_queue: asynci
     finally:
         msg_writer.close()
         await msg_writer.wait_closed()
+        print_terminal(0, "Message sender closed.")
+
+
+async def message_server(server_ip: str, server_port: int, msg_queue: asyncio.Queue, stop: asyncio.Event):
+    try:
+        print_terminal(0, "Waiting for client connection...")
+        msg_server = await asyncio.start_server(
+            lambda r, w:  async_send_message(r, w, msg_queue, stop), server_ip, server_port)
+        async with msg_server:
+            await msg_server.serve_forever()
+    except asyncio.CancelledError:
         print_terminal(0, "Message sender task finished correctly")
+

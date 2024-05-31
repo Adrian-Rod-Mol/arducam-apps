@@ -12,7 +12,7 @@ from src.async_terminal_tcp import (
     UserAction,
     print_terminal,
     async_terminal,
-    async_send_message
+    message_server
 )
 
 resolution_map = {
@@ -73,55 +73,73 @@ def get_arguments() -> Namespace:
     return parser.parse_args()
 
 
+async def receive_image_callback(reader, writer, img_bytes: int,
+                                 data_queue: asyncio.Queue, client_connected: asyncio.Event, start: asyncio.Event):
+    client_connected.set()
+    mean_time = 0
+    count = 0
+    while start.is_set():
+        start_time = time.perf_counter_ns()
+        bytes_to_receive = img_bytes
+        try:
+            while bytes_to_receive > 0:
+                data = await asyncio.wait_for(reader.read(bytes_to_receive), LOOP_TIMEOUT)
+                if data:
+                    await data_queue.put(data)
+                    bytes_to_receive -= len(data)
+            mean_time += time.perf_counter_ns() - start_time
+            count += 1
+
+        except asyncio.TimeoutError:
+            print_terminal(1, "Waiting for the server to send the image timed out.")
+
+    writer.close()
+    await writer.wait_closed()
+    if count != 0:
+        mean_time /= count
+        print_terminal(0, f"Mean time elapsed receiving {count} images:  {mean_time / 1000000} ms")
+    client_connected.clear()
+
+
+async def receive_image_server(server_ip: str,
+                               server_port: int,
+                               img_bytes: int,
+                               data_queue: asyncio.Queue,
+                               client_connected: asyncio.Event,
+                               start: asyncio.Event):
+    try:
+        img_server = await asyncio.start_server(
+            lambda r, w:  asyncio.shield(receive_image_callback(r, w, img_bytes, data_queue, client_connected, start)),
+            server_ip, server_port)
+        async with img_server:
+            await img_server.serve_forever()
+    except asyncio.CancelledError:
+        pass
+
+
 async def receive_task(server_ip: str,
                        server_port: int,
                        img_bytes: int,
                        data_queue: asyncio.Queue,
-                       client_connected: threading.Event,
+                       client_connected: asyncio.Event,
                        start: asyncio.Event,
                        finish: asyncio.Event):
-    img_writer = None
     try:
         while not finish.is_set():
             _, _ = await asyncio.wait([finish.wait(), start.wait()], return_when=asyncio.FIRST_COMPLETED)
             if finish.is_set():
                 break
             elif start.is_set():
-                img_reader, img_writer = await asyncio.open_connection(server_ip, server_port, limit=img_bytes)
-                client_connected.set()
-                mean_time = 0
-                count = 0
-
-                while start.is_set():
-                    start_time = time.perf_counter_ns()
-                    bytes_to_receive = img_bytes
-                    try:
-                        while bytes_to_receive > 0:
-                            data = await asyncio.wait_for(img_reader.read(bytes_to_receive), LOOP_TIMEOUT)
-                            if data:
-                                await data_queue.put(data)
-                                bytes_to_receive -= len(data)
-                        mean_time += time.perf_counter_ns() - start_time
-                        count += 1
-
-                    except asyncio.TimeoutError:
-                        print_terminal(1, "Waiting for the server to send the image timed out.")
-
-                img_writer.close()
-                await img_writer.wait_closed()
-                img_writer = None
-                if count != 0:
-                    mean_time /= count
-                    print_terminal(0, f"Mean time elapsed receiving {count} images:  {mean_time / 1000000} ms")
+                img_server_task = asyncio.create_task(
+                    receive_image_server(
+                        server_ip, server_port, img_bytes, data_queue, client_connected, start))
+                await client_connected.wait()
+                img_server_task.cancel()
 
     except Exception as e:
         print(e)
 
     finally:
-        if img_writer is not None:
-            img_writer.close()
-            await img_writer.wait_closed()
-        client_connected.clear()
         print_terminal(0, "Image receiving task finished correctly.")
 
 
@@ -238,6 +256,36 @@ async def control_task(
         print_terminal(0, "Control task finished correctly.")
 
 
+async def configure_camera(reader, writer, resolution: str, configuration_complete: asyncio.Event):
+    print_terminal(0, "Configuration client connected.")
+    conf_message = ""
+    if resolution == "LOW":
+        conf_message = "--mode 1332:990:10:U --resolution LOW"
+    elif resolution == "MEDIUM":
+        conf_message = "--mode 2028:1520:12:U --resolution MEDIUM"
+    elif resolution == "HIGH":
+        conf_message = "--mode 4056:3040:12:U --resolution HIGH"
+
+    writer.write(conf_message.encode('utf-8'))
+    await writer.drain()
+
+    writer.close()
+    await writer.wait_closed()
+    configuration_complete.set()
+
+
+async def configure_camera_server(ip: str, port: int, resolution: str, configuration_complete: asyncio.Event):
+    try:
+        # Sending configuration to Raspberry
+        print_terminal(0, "Waiting for connection to configure...")
+        cnf_server = await asyncio.start_server(
+            lambda w, r: configure_camera(w, r, resolution, configuration_complete), ip, port)
+        async with cnf_server:
+            await cnf_server.start_serving()
+    except asyncio.CancelledError:
+        print_terminal(0, "Camera configured.")
+
+
 async def main():
     user_action_map = [
         UserAction(
@@ -282,28 +330,11 @@ async def main():
 
     # Bytes = height*with*bands*2 bytes each pixel
     image_bytes = current_res["band_width"] * current_res["band_height"] * 4 * 2
-    # Sending configuration to Raspberry
-    print_terminal(0, "Waiting for connection to configure...")
-    cnf_reader, cnf_writer = await asyncio.open_connection(args.ip, TCP_CONF_PORT)
-    print_terminal(0, "Configuration client connected.")
 
-    conf_message = ""
-    if args.resolution == "LOW":
-        conf_message = "--mode 1332:990:10:U --resolution LOW"
-    elif args.resolution == "MEDIUM":
-        conf_message = "--mode 2028:1520:12:U --resolution MEDIUM"
-    elif args.resolution == "HIGH":
-        conf_message = "--mode 4056:3040:12:U --resolution HIGH"
-
-    cnf_writer.write(conf_message.encode('utf-8'))
-    await cnf_writer.drain()
-
-    cnf_writer.close()
-    await cnf_writer.wait_closed()
-
-    print_terminal(0, "Waiting for client connection...")
-    msg_reader, msg_writer = await asyncio.open_connection(args.ip, TCP_MSG_PORT)
-    print_terminal(0, "A client has connected to the message queue.")
+    config_complete = asyncio.Event()
+    conf_task = asyncio.create_task(configure_camera_server(args.ip, TCP_CONF_PORT, args.resolution, config_complete))
+    await config_complete.wait()
+    conf_task.cancel()
 
     # Define default output or capturing folder to prevent errors and undefined behaviour
     output_folder = Path(args.output_folder)
@@ -313,19 +344,10 @@ async def main():
 
     image_display = ImageDisplay(0, current_res["width"], current_res["height"])
 
-    _tasks = [
-        async_terminal(user_action_map, process_msg_queue),
-        async_send_message(msg_writer, msg_queue, finish_event),
-        receive_task(args.ip, TCP_PORT, image_bytes, data_queue, client_event, start_event, finish_event),
-        decode_task(current_res, image_bytes, data_queue, image_queue, client_event, start_event, finish_event),
-        control_task(image_queue, msg_queue, process_msg_queue,
-                     client_event, start_event, finish_event,
-                     output_folder, capturing_folder, image_display, args.save, args.no_show)
-    ]
     try:
         async with asyncio.TaskGroup() as tg:
             tk_terminal = tg.create_task(async_terminal(user_action_map, process_msg_queue))
-            tk_message = tg.create_task(async_send_message(msg_writer, msg_queue, finish_event))
+            tk_message = tg.create_task(message_server(args.ip, TCP_MSG_PORT, msg_queue, finish_event))
             tk_receive = tg.create_task(
                 asyncio.shield(
                     receive_task(args.ip, TCP_PORT, image_bytes, data_queue, client_event, start_event, finish_event)))
@@ -338,14 +360,14 @@ async def main():
                     image_queue, msg_queue, process_msg_queue, client_event, start_event, finish_event,
                     output_folder, capturing_folder, image_display, args.save, args.no_show)
             )
+            await finish_event.wait()
+            tk_message.cancel()
 
-    except KeyboardInterrupt:
-        print("Code finished")
     except Exception as e:
         print(e)
     finally:
-        msg_writer.close()
-        await msg_writer.wait_closed()
+        print("Code finished")
+
 
 if __name__ == '__main__':
     asyncio.run(main())
