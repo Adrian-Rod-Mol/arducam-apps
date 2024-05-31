@@ -38,6 +38,58 @@ class ComputerScreen:
         return math.floor(input_height / input_width * self.height), self.height
 
 
+class ImageDisplay:
+    def __init__(self, device_id: int, image_width: int = 0, image_height: int = 0, framerate: int = 5):
+        screen_size = self.get_screen_size(device_id)
+        self.screen_height = screen_size[0]
+        self.screen_width = screen_size[1]
+
+        self.window_width = 660
+        self.window_height = 480
+        self.setup_window_size(image_width, image_height)
+
+        self.skip_count = 0
+        self.frames_to_skip = np.floor(framerate / 5)
+
+    @staticmethod
+    def get_screen_size(screen_id: int) -> Tuple[int, int]:
+        """Return the screen resolution of the selected screen (only valid for linux)
+        params:
+            screen_id   : index of the screen from which the resolution is to be obtained
+        returns:
+            Tuple with height and width in pixel of the selected screen
+            """
+        import subprocess
+        output = subprocess.Popen(
+            'xrandr | grep "\*" | cut -d" " -f4', shell=True, stdout=subprocess.PIPE).communicate()[0]
+        screen_resolution_list_str = output.decode('utf-8')[:-1].split('\n')
+        screen_resolution_list = [
+            (int(res.split('x')[0]), int(res.split('x')[1])) for res in screen_resolution_list_str]
+        return screen_resolution_list[screen_id]
+
+    def get_height_with_aspect_ratio(self, input_width: int, input_height: int) -> Tuple[int, int]:
+        return self.screen_width, math.floor(input_height / input_width * self.screen_width)
+
+    def get_width_with_aspect_ratio(self, input_width: int, input_height: int) -> Tuple[int, int]:
+        return math.floor(input_height / input_width * self.screen_height), self.screen_height
+
+    def setup_window_size(self, image_height: int, image_width: int):
+        window_size = self.get_width_with_aspect_ratio(image_width, image_height)
+        self.window_width = int(window_size[0] * 0.95)
+        self.window_height = int(window_size[1] * 0.95)
+
+    def show_frame(self, name: str, frame: np.ndarray):
+        if self.skip_count == self.frames_to_skip:
+            mosaic = generate_arducam_mosaic(frame)
+            cv.namedWindow(name, cv.WINDOW_NORMAL)
+            cv.resizeWindow(name, self.window_width, self.window_height)
+            cv.imshow(name, mosaic)
+            cv.waitKey(1)
+            self.skip_count = 0
+        else:
+            self.skip_count += 1
+
+
 def show_image(
         name: str,
         image: np.ndarray,
