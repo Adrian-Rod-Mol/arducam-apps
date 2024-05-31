@@ -281,7 +281,7 @@ async def configure_camera_server(ip: str, port: int, resolution: str, configura
         cnf_server = await asyncio.start_server(
             lambda w, r: configure_camera(w, r, resolution, configuration_complete), ip, port)
         async with cnf_server:
-            await cnf_server.start_serving()
+            await cnf_server.serve_forever()
     except asyncio.CancelledError:
         print_terminal(0, "Camera configured.")
 
@@ -345,23 +345,26 @@ async def main():
     image_display = ImageDisplay(0, current_res["width"], current_res["height"])
 
     try:
-        async with asyncio.TaskGroup() as tg:
-            tk_terminal = tg.create_task(async_terminal(user_action_map, process_msg_queue))
-            tk_message = tg.create_task(message_server(args.ip, TCP_MSG_PORT, msg_queue, finish_event))
-            tk_receive = tg.create_task(
-                asyncio.shield(
-                    receive_task(args.ip, TCP_PORT, image_bytes, data_queue, client_event, start_event, finish_event)))
-            tk_decode = tg.create_task(
-                asyncio.shield(
-                    decode_task(
-                        current_res, image_bytes, data_queue, image_queue, client_event, start_event, finish_event)))
-            tk_control = tg.create_task(
-                control_task(
-                    image_queue, msg_queue, process_msg_queue, client_event, start_event, finish_event,
-                    output_folder, capturing_folder, image_display, args.save, args.no_show)
-            )
-            await finish_event.wait()
-            tk_message.cancel()
+        tk_terminal = asyncio.create_task(async_terminal(user_action_map, process_msg_queue))
+        tk_message = asyncio.create_task(message_server(args.ip, TCP_MSG_PORT, msg_queue, finish_event))
+        tk_receive = asyncio.create_task(
+            asyncio.shield(
+                receive_task(args.ip, TCP_PORT, image_bytes, data_queue, client_event, start_event, finish_event)))
+        tk_decode = asyncio.create_task(
+            asyncio.shield(
+                decode_task(
+                    current_res, image_bytes, data_queue, image_queue, client_event, start_event, finish_event)))
+        tk_control = asyncio.create_task(
+            control_task(
+                image_queue, msg_queue, process_msg_queue, client_event, start_event, finish_event,
+                output_folder, capturing_folder, image_display, args.save, args.no_show)
+        )
+        await tk_control
+        await finish_event.wait()
+        tk_message.cancel()
+        await tk_receive
+        await tk_decode
+        await tk_terminal
 
     except Exception as e:
         print(e)
