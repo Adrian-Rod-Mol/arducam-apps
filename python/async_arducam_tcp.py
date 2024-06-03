@@ -218,30 +218,14 @@ async def decode_task(current_res: dict,
 
 
 async def control_task(
-        image_queue: asyncio.Queue,
         msg_queue: asyncio.Queue,
         process_msg_queue: asyncio.Queue,
         client_event: asyncio.Event,
         start_event: asyncio.Event,
-        finish_event: asyncio.Event,
-        output_folder: Path,
-        capturing_folder: Path,
-        image_display: ImageDisplay,
-        save: bool,
-        no_show: bool):
+        finish_event: asyncio.Event):
     try:
-        save_count = 0
-        while not finish_event.is_set():
-            if not image_queue.empty():
-                image = await image_queue.get()
-                if not no_show:
-                    image_display.show_frame("Arducam", image)
 
-                if save:
-                    filename = f"{save_count:08d}.raw"
-                    file_path = capturing_folder.joinpath(filename)
-                    image.tofile(file_path)
-                    save_count += 1
+        while not finish_event.is_set():
 
             if not process_msg_queue.empty():
                 current_msg = await process_msg_queue.get()
@@ -255,27 +239,11 @@ async def control_task(
 
                 elif current_msg.key == "START":
                     start_event.set()
-                    if save:
-                        capturing_folder = generate_new_capturing_folder(output_folder)
                     await asyncio.sleep(0.5)
                     await msg_queue.put(current_msg)
 
                 elif current_msg.key == "STOP":
                     await msg_queue.put(current_msg)
-                    # Wait for all the data to be saved in the file or showed on screen
-                    while not image_queue.empty():
-                        image = await image_queue.get()
-                        if save:
-                            filename = f"{save_count:08d}.raw"
-                            file_path = capturing_folder.joinpath(filename)
-                            image.tofile(file_path)
-                            save_count += 1
-                        if not no_show:
-                            image_display.show_frame("Arducam", image)
-                    if not no_show:
-                        cv.destroyWindow("Arducam")
-
-                    save_count = 0
 
                 elif current_msg.key == "EXPOSURE":
                     # Checks if image thread has been initialized or is currently receiving images
@@ -284,12 +252,49 @@ async def control_task(
                     else:
                         print_terminal(0, f"Setting exposure to: {current_msg.value} us")
                         await msg_queue.put(current_msg)
-            await asyncio.sleep(0.015)
+            await asyncio.sleep(0.1)
 
     except Exception as e:
         raise e
     finally:
         print_terminal(0, "Control task finished correctly.")
+
+
+async def manage_image_task(image_queue: asyncio.Queue,
+                            name: str, current_res: dict,
+                            output_folder: Path,
+                            finish: asyncio.Event, start: asyncio.Event,
+                            save: bool, no_show: bool):
+    image_display = ImageDisplay(0, current_res["width"], current_res["height"])
+    while not finish.is_set():
+        while not start.is_set() and not finish.is_set():
+            await asyncio.sleep(0.2)
+        if finish.is_set():
+            break
+        elif start.is_set():
+            if not no_show:
+                image_display.setup_window(name)
+
+            if save:
+                save_count = 0
+                capturing_folder = generate_new_capturing_folder(output_folder)
+
+            while start.is_set() or not image_queue.empty():
+                if not image_queue.empty():
+                    image = await image_queue.get()
+                    if not no_show:
+                        image_display.show_frame("Arducam", image)
+
+                    if save:
+                        filename = f"{save_count:08d}.raw"
+                        file_path = capturing_folder.joinpath(filename)
+                        image.tofile(file_path)
+                        save_count += 1
+                await asyncio.sleep(0.015)
+
+            if not no_show:
+                cv.destroyWindow(name)
+
 
 
 async def configure_camera(reader, writer, resolution: str, configuration_complete: asyncio.Event):
@@ -378,7 +383,6 @@ async def main():
         output_folder.mkdir()
     capturing_folder = output_folder
 
-    image_display = ImageDisplay(0, current_res["width"], current_res["height"])
 
     try:
         tk_terminal = asyncio.create_task(async_terminal(user_action_map, process_msg_queue))
@@ -392,15 +396,22 @@ async def main():
                     current_res, image_bytes, data_queue, image_queue, client_event, start_event, finish_event)))
         tk_control = asyncio.create_task(
             control_task(
-                image_queue, msg_queue, process_msg_queue, client_event, start_event, finish_event,
-                output_folder, capturing_folder, image_display, args.save, args.no_show)
+                msg_queue, process_msg_queue, client_event, start_event, finish_event)
         )
+        tk_image = asyncio.create_task(
+            manage_image_task(
+                image_queue,
+                            "Arducam", current_res,
+                            output_folder,
+                            finish_event, start_event,
+                            args.save, args.no_show))
         await tk_control
         await finish_event.wait()
         tk_message.cancel()
         await tk_receive
         await tk_decode
         await tk_terminal
+        await tk_image
 
     except Exception as e:
         print(e)

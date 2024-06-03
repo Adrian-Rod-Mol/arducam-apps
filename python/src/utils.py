@@ -1,5 +1,6 @@
 import queue
 import threading
+import pygame
 
 import cv2 as cv
 import os
@@ -78,11 +79,13 @@ class ImageDisplay:
         self.window_width = int(window_size[0] * 0.95)
         self.window_height = int(window_size[1] * 0.95)
 
+    def setup_window(self, name):
+        cv.namedWindow(name, cv.WINDOW_NORMAL)
+        cv.resizeWindow(name, self.window_width, self.window_height)
+
     def show_frame(self, name: str, frame: np.ndarray):
         if self.skip_count == self.frames_to_skip:
             mosaic = generate_arducam_mosaic(frame)
-            cv.namedWindow(name, cv.WINDOW_NORMAL)
-            cv.resizeWindow(name, self.window_width, self.window_height)
             cv.imshow(name, mosaic)
             cv.waitKey(1)
             self.skip_count = 0
