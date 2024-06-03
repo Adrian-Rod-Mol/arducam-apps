@@ -290,8 +290,9 @@ async def manage_image_task(image_queue: asyncio.Queue,
                         save_count += 1
                 await asyncio.sleep(0.015)
 
+            print_terminal(0, "All images has been processed.")
             if not no_show:
-                cv.destroyWindow(name)
+                cv.destroyAllWindows()
 
 
 async def configure_camera(reader, writer, resolution: str, configuration_complete: asyncio.Event):
