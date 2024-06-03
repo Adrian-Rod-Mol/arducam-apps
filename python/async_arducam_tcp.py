@@ -182,7 +182,7 @@ async def decode_task(current_res: dict,
             if finish.is_set():
                 break
 
-            while start.is_set() or not data_queue.empty():
+            while True:
                 start_time = time.perf_counter_ns()
                 image = np.empty((img_bytes,), dtype=np.uint8)
                 data_received = 0
@@ -203,12 +203,14 @@ async def decode_task(current_res: dict,
                     start.clear()
                     if not start.is_set():
                         print_terminal(0, "Start event correctly cleared.")
+                    break
                 except Exception as e:
                     raise e
 
             if count != 0:
                 mean_time /= count
                 print_terminal(0, f"Mean time elapsed processing {count} images:  {mean_time / 1000000} ms")
+                
     except Exception as e:
         raise e
     finally:
