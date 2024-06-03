@@ -73,11 +73,10 @@ def get_arguments() -> Namespace:
     return parser.parse_args()
 
 
-async def read_image_task(reader: asyncio.StreamReader, img_bytes: int,
-                          data_queue: asyncio.Queue, start: asyncio.Event):
+async def read_image_task(reader: asyncio.StreamReader, img_bytes: int, data_queue: asyncio.Queue):
     mean_time = 0
     count = 0
-    while start.is_set():
+    while True:
         start_time = time.perf_counter_ns()
         bytes_to_receive = img_bytes
         try:
@@ -92,21 +91,22 @@ async def read_image_task(reader: asyncio.StreamReader, img_bytes: int,
 
         except asyncio.TimeoutError:
             print_terminal(0, "Stopped receiving images from TCP server.")
-            break
+            if count != 0:
+                mean_time /= count
+                print_terminal(0, f"Mean time elapsed receiving {count} images:  {mean_time / 1000000} ms")
+            return
         except Exception as e:
             raise e
 
-    if count != 0:
-        mean_time /= count
-        print_terminal(0, f"Mean time elapsed receiving {count} images:  {mean_time / 1000000} ms")
+
 
 
 async def receive_image_callback(reader, writer, img_bytes: int,
-                                 data_queue: asyncio.Queue, client_connected: asyncio.Event, start: asyncio.Event):
+                                 data_queue: asyncio.Queue, client_connected: asyncio.Event):
     try:
         print_terminal(0, "Image provider client connected.")
         client_connected.set()
-        await asyncio.shield(asyncio.create_task(read_image_task(reader, img_bytes, data_queue, start)))
+        await asyncio.shield(asyncio.create_task(read_image_task(reader, img_bytes, data_queue)))
 
         writer.close()
         await writer.wait_closed()
@@ -120,12 +120,11 @@ async def receive_image_server(server_ip: str,
                                server_port: int,
                                img_bytes: int,
                                data_queue: asyncio.Queue,
-                               client_connected: asyncio.Event,
-                               start: asyncio.Event):
+                               client_connected: asyncio.Event):
     try:
         print_terminal(0, "Waiting for connection to receive images...")
         img_server = await asyncio.start_server(
-            lambda r, w: receive_image_callback(r, w, img_bytes, data_queue, client_connected, start),
+            lambda r, w: receive_image_callback(r, w, img_bytes, data_queue, client_connected),
             server_ip, server_port, limit=(img_bytes + 1))
         async with img_server:
             await img_server.serve_forever()
@@ -152,7 +151,7 @@ async def receive_task(server_ip: str,
             elif start.is_set():
                 img_server_task = asyncio.create_task(
                     receive_image_server(
-                        server_ip, server_port, img_bytes, data_queue, client_connected, start))
+                        server_ip, server_port, img_bytes, data_queue, client_connected))
                 while start.is_set() or client_connected.is_set():
                     await asyncio.sleep(0.2)
                 img_server_task.cancel()
