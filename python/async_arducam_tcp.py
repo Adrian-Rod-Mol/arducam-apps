@@ -103,14 +103,17 @@ async def read_image_task(reader: asyncio.StreamReader, img_bytes: int,
 
 async def receive_image_callback(reader, writer, img_bytes: int,
                                  data_queue: asyncio.Queue, client_connected: asyncio.Event, start: asyncio.Event):
-    print_terminal(0, "Image provider client connected.")
-    client_connected.set()
-    await asyncio.shield(asyncio.create_task(read_image_task(reader, img_bytes, data_queue, start)))
+    try:
+        print_terminal(0, "Image provider client connected.")
+        client_connected.set()
+        await asyncio.shield(asyncio.create_task(read_image_task(reader, img_bytes, data_queue, start)))
 
-    writer.close()
-    await writer.wait_closed()
+        writer.close()
+        await writer.wait_closed()
 
-    client_connected.clear()
+        client_connected.clear()
+    except Exception as e:
+        raise e
 
 
 async def receive_image_server(server_ip: str,
@@ -139,6 +142,7 @@ async def receive_task(server_ip: str,
                        client_connected: asyncio.Event,
                        start: asyncio.Event,
                        finish: asyncio.Event):
+    img_server_task = None
     try:
         while not finish.is_set():
             while not finish.is_set() and not start.is_set():
@@ -149,13 +153,18 @@ async def receive_task(server_ip: str,
                 img_server_task = asyncio.create_task(
                     receive_image_server(
                         server_ip, server_port, img_bytes, data_queue, client_connected, start))
-                await client_connected.wait()
+                while start.is_set() or client_connected.is_set():
+                    await asyncio.sleep(0.2)
                 img_server_task.cancel()
+                img_server_task = None
 
     except Exception as e:
         raise e
 
     finally:
+        if img_server_task is not None:
+            img_server_task.cancel()
+            
         print_terminal(0, "Image receiving task finished correctly.")
 
 
