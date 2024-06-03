@@ -99,14 +99,12 @@ async def read_image_task(reader: asyncio.StreamReader, img_bytes: int, data_que
             raise e
 
 
-
-
 async def receive_image_callback(reader, writer, img_bytes: int,
                                  data_queue: asyncio.Queue, client_connected: asyncio.Event):
     try:
         print_terminal(0, "Image provider client connected.")
         client_connected.set()
-        await asyncio.shield(asyncio.create_task(read_image_task(reader, img_bytes, data_queue)))
+        await asyncio.create_task(read_image_task(reader, img_bytes, data_queue))
 
         writer.close()
         await writer.wait_closed()
