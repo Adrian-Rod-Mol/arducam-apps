@@ -357,11 +357,11 @@ async def main():
     try:
         tk_terminal = asyncio.create_task(async_terminal(user_action_map, process_msg_queue))
         tk_message = asyncio.create_task(message_server(args.ip, TCP_MSG_PORT, msg_queue, finish_event))
-        tk_receive = asyncio.create_task(
-            asyncio.shield(
+        tk_receive = asyncio.shield(
+            asyncio.create_task(
                 receive_task(args.ip, TCP_PORT, image_bytes, data_queue, client_event, start_event, finish_event)))
-        tk_decode = asyncio.create_task(
-            asyncio.shield(
+        tk_decode = asyncio.shield(
+            asyncio.create_task(
                 decode_task(
                     current_res, image_bytes, data_queue, image_queue, client_event, start_event, finish_event)))
         tk_control = asyncio.create_task(
