@@ -201,6 +201,8 @@ async def decode_task(current_res: dict,
                 except asyncio.TimeoutError:
                     print_terminal(0, "Image queue empty. Decode process finished.")
                     start.clear()
+                    if not start.is_set():
+                        print_terminal(0, "Start event correctly cleared.")
                 except Exception as e:
                     raise e
 
