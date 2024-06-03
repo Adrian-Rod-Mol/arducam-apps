@@ -1,7 +1,5 @@
 import queue
 import threading
-import pygame
-
 import cv2 as cv
 import os
 import numpy as np

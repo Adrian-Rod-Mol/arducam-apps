@@ -125,8 +125,8 @@ async def receive_image_server(server_ip: str,
     try:
         print_terminal(0, "Waiting for connection to receive images...")
         img_server = await asyncio.start_server(
-            lambda r, w:  receive_image_callback(r, w, img_bytes, data_queue, client_connected, start),
-            server_ip, server_port, limit=(img_bytes+1))
+            lambda r, w: receive_image_callback(r, w, img_bytes, data_queue, client_connected, start),
+            server_ip, server_port, limit=(img_bytes + 1))
         async with img_server:
             await img_server.serve_forever()
     except asyncio.CancelledError:
@@ -296,7 +296,6 @@ async def manage_image_task(image_queue: asyncio.Queue,
                 cv.destroyWindow(name)
 
 
-
 async def configure_camera(reader, writer, resolution: str, configuration_complete: asyncio.Event):
     print_terminal(0, "Configuration client connected.")
     conf_message = ""
@@ -383,7 +382,6 @@ async def main():
         output_folder.mkdir()
     capturing_folder = output_folder
 
-
     try:
         tk_terminal = asyncio.create_task(async_terminal(user_action_map, process_msg_queue))
         tk_message = asyncio.create_task(message_server(args.ip, TCP_MSG_PORT, msg_queue, finish_event))
@@ -400,11 +398,10 @@ async def main():
         )
         tk_image = asyncio.create_task(
             manage_image_task(
-                image_queue,
-                            "Arducam", current_res,
-                            output_folder,
-                            finish_event, start_event,
-                            args.save, args.no_show))
+                image_queue, "Arducam", current_res,
+                output_folder,
+                finish_event, start_event,
+                args.save, args.no_show))
         await tk_control
         await finish_event.wait()
         tk_message.cancel()
