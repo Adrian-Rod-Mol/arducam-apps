@@ -85,10 +85,12 @@ async def read_image_task(reader: asyncio.StreamReader, img_bytes: int, data_que
             while bytes_to_receive > 0:
                 data = await asyncio.wait_for(reader.read(bytes_to_receive), LOOP_TIMEOUT)
                 if data:
-                    await data_queue.put(data)
-                    bytes_to_receive -= len(data)
-                else:
-                    camera_capturing = False
+                    if data == b'':
+                        camera_capturing = False
+                        break
+                    else:
+                        await data_queue.put(data)
+                        bytes_to_receive -= len(data)
 
             mean_time += time.perf_counter_ns() - start_time
             count += 1
