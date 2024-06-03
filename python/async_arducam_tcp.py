@@ -194,7 +194,7 @@ async def decode_task(current_res: dict,
                         if len(data) != 0:
                             image[data_received:data_received + len(data)] = np.frombuffer(data, np.uint8)
                             data_received += len(data)
-                            print_terminal(1, f"Bytes decoded: {data_received}")
+
                     image = image.view(np.uint16)
                     image_reshaped = image.reshape((4, current_res["band_height"], current_res["band_width"]))
                     await image_queue.put(image_reshaped)
@@ -259,17 +259,20 @@ async def control_task(
 
                 elif current_msg.key == "STOP":
                     await msg_queue.put(current_msg)
-                    # Wait for all the data to be saved in the file
-                    if save:
-                        while not image_queue.empty():
-                            image = await image_queue.get()
+                    start_event.clear()
+                    # Wait for all the data to be saved in the file or showed on screen
+                    while not image_queue.empty():
+                        image = await image_queue.get()
+                        if save:
                             filename = f"{save_count:08d}.raw"
                             file_path = capturing_folder.joinpath(filename)
                             image.tofile(file_path)
                             save_count += 1
+                        if not no_show:
+                            image_display.show_frame("Arducam", image)
                     if not no_show:
-                        cv.destroyAllWindows()
-                    start_event.clear()
+                        cv.destroyWindow("Arducam")
+                    
                     save_count = 0
 
                 elif current_msg.key == "EXPOSURE":
