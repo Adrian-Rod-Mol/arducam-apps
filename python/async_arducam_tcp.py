@@ -25,7 +25,7 @@ resolution_map = {
 TCP_PORT = 32233
 TCP_MSG_PORT = 32211
 TCP_CONF_PORT = 32121
-LOOP_TIMEOUT = 2
+LOOP_TIMEOUT = 3
 
 
 def get_arguments() -> Namespace:
@@ -86,11 +86,14 @@ async def read_image_task(reader: asyncio.StreamReader, img_bytes: int,
                 if data:
                     await data_queue.put(data)
                     bytes_to_receive -= len(data)
+                    print_terminal(1, f"Bytes remaining: {bytes_to_receive}")
             mean_time += time.perf_counter_ns() - start_time
             count += 1
 
         except asyncio.TimeoutError:
             print_terminal(1, "Waiting for the server to send the image timed out.")
+        except Exception as e:
+            raise e
 
     if count != 0:
         mean_time /= count
@@ -124,6 +127,8 @@ async def receive_image_server(server_ip: str,
             await img_server.serve_forever()
     except asyncio.CancelledError:
         pass
+    except Exception as e:
+        raise e
 
 
 async def receive_task(server_ip: str,
@@ -180,6 +185,7 @@ async def decode_task(current_res: dict,
                         if len(data) != 0:
                             image[data_received:len(data)] = np.frombuffer(data, np.uint8)
                             data_received += len(data)
+                            print_terminal(1, f"Bytes decoded: {data_received}")
                     image = image.view(np.uint16)
                     image_reshaped = image.reshape((4, current_res["band_height"], current_res["band_width"]))
                     await image_queue.put(image_reshaped)
@@ -187,6 +193,8 @@ async def decode_task(current_res: dict,
                     count += 1
                 except asyncio.TimeoutError:
                     print_terminal(1, "Waiting for data in the image queue timed out.")
+                except Exception as e:
+                    raise e
 
             if count != 0:
                 mean_time /= count
