@@ -74,7 +74,7 @@ def get_arguments() -> Namespace:
 
 
 async def read_image_task(reader: asyncio.StreamReader, img_bytes: int,
-                          data_queue: asyncio.Queue, client_connected: asyncio.Event, start: asyncio.Event):
+                          data_queue: asyncio.Queue, start: asyncio.Event):
     mean_time = 0
     count = 0
     while start.is_set():
@@ -87,6 +87,8 @@ async def read_image_task(reader: asyncio.StreamReader, img_bytes: int,
                     await data_queue.put(data)
                     bytes_to_receive -= len(data)
                     print_terminal(1, f"Bytes remaining: {bytes_to_receive}")
+                else:
+                    print(data)
             mean_time += time.perf_counter_ns() - start_time
             count += 1
 
@@ -122,7 +124,7 @@ async def receive_image_server(server_ip: str,
         print_terminal(0, "Waiting for connection to receive images...")
         img_server = await asyncio.start_server(
             lambda r, w:  receive_image_callback(r, w, img_bytes, data_queue, client_connected, start),
-            server_ip, server_port)
+            server_ip, server_port, limit=(img_bytes+1))
         async with img_server:
             await img_server.serve_forever()
     except asyncio.CancelledError:
