@@ -76,29 +76,32 @@ def get_arguments() -> Namespace:
 async def read_image_task(reader: asyncio.StreamReader, img_bytes: int, data_queue: asyncio.Queue):
     mean_time = 0
     count = 0
-    while True:
-        start_time = time.perf_counter_ns()
-        bytes_to_receive = img_bytes
-        try:
+    camera_capturing = True
+    try:
+        while camera_capturing:
+            start_time = time.perf_counter_ns()
+            bytes_to_receive = img_bytes
+
             while bytes_to_receive > 0:
                 data = await asyncio.wait_for(reader.read(bytes_to_receive), LOOP_TIMEOUT)
                 if data:
                     await data_queue.put(data)
                     bytes_to_receive -= len(data)
-                if len(data) < 5:
-                    print_terminal(1, "Received extremely short data array.")
+                else:
+                    camera_capturing = False
 
             mean_time += time.perf_counter_ns() - start_time
             count += 1
 
-        except asyncio.TimeoutError:
-            print_terminal(0, "Stopped receiving images from TCP server.")
-            if count != 0:
-                mean_time /= count
-                print_terminal(0, f"Mean time elapsed receiving {count} images:  {mean_time / 1000000} ms")
-            return
-        except Exception as e:
-            raise e
+    except Exception as e:
+        raise e
+
+    finally:
+        print_terminal(0, "Stopped receiving images from TCP server.")
+        if count != 0:
+            mean_time /= count
+            print_terminal(0, f"Mean time elapsed receiving {count} images:  {mean_time / 1000000} ms")
+        return
 
 
 async def receive_image_callback(reader, writer, img_bytes: int,
@@ -203,8 +206,6 @@ async def decode_task(current_res: dict,
                 except asyncio.TimeoutError:
                     print_terminal(0, "Image queue empty. Decode process finished.")
                     start.clear()
-                    if not start.is_set():
-                        print_terminal(0, "Start event correctly cleared.")
                     break
                 except Exception as e:
                     raise e
