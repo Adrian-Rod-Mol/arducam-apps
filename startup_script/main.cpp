@@ -81,6 +81,7 @@ int main() {
 		  }
 
 		  auto camera_command = camera_repository + camera_binaries + command_options + resolution_options;
+		  std::cout << " =========================\n " << camera_command << " \n=========================\n ";
 		  int result = system(camera_command.c_str());
 		  return result;
         } else {
