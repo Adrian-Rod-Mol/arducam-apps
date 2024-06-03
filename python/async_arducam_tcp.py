@@ -1,4 +1,5 @@
 import numpy as np
+import cv2 as cv
 import asyncio
 import time
 from pathlib import Path
@@ -266,6 +267,8 @@ async def control_task(
                             file_path = capturing_folder.joinpath(filename)
                             image.tofile(file_path)
                             save_count += 1
+                    if not no_show:
+                        cv.destroyAllWindows()
                     start_event.clear()
                     save_count = 0
 
