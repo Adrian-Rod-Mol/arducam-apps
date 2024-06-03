@@ -85,6 +85,8 @@ async def read_image_task(reader: asyncio.StreamReader, img_bytes: int, data_que
                 if data:
                     await data_queue.put(data)
                     bytes_to_receive -= len(data)
+                if len(data) < 5:
+                    print_terminal(1, "Received extremely short data array.")
 
             mean_time += time.perf_counter_ns() - start_time
             count += 1
@@ -210,7 +212,7 @@ async def decode_task(current_res: dict,
             if count != 0:
                 mean_time /= count
                 print_terminal(0, f"Mean time elapsed processing {count} images:  {mean_time / 1000000} ms")
-                
+
     except Exception as e:
         raise e
     finally:
