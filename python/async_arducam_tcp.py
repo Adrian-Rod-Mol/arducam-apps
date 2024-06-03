@@ -91,7 +91,8 @@ async def read_image_task(reader: asyncio.StreamReader, img_bytes: int,
             count += 1
 
         except asyncio.TimeoutError:
-            print_terminal(1, "Waiting for the server to send the image timed out.")
+            print_terminal(0, "Stopped receiving images from TCP server.")
+            break
         except Exception as e:
             raise e
 
@@ -109,8 +110,7 @@ async def receive_image_callback(reader, writer, img_bytes: int,
 
         writer.close()
         await writer.wait_closed()
-        
-        start.clear()
+
         client_connected.clear()
     except Exception as e:
         raise e
@@ -202,10 +202,12 @@ async def decode_task(current_res: dict,
                     mean_time += time.perf_counter_ns() - start_time
                     count += 1
                 except asyncio.TimeoutError:
-                    print_terminal(1, "Waiting for data in the image queue timed out.")
+                    print_terminal(0, "Image queue empty. Decode process finished.")
+                    break
                 except Exception as e:
                     raise e
 
+            start.clear()
             if count != 0:
                 mean_time /= count
                 print_terminal(0, f"Mean time elapsed processing {count} images:  {mean_time / 1000000} ms")
@@ -255,7 +257,7 @@ async def control_task(
                     start_event.set()
                     if save:
                         capturing_folder = generate_new_capturing_folder(output_folder)
-
+                    await asyncio.sleep(0.5)
                     await msg_queue.put(current_msg)
 
                 elif current_msg.key == "STOP":
