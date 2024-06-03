@@ -25,7 +25,7 @@ resolution_map = {
 TCP_PORT = 32233
 TCP_MSG_PORT = 32211
 TCP_CONF_PORT = 32121
-LOOP_TIMEOUT = 3
+LOOP_TIMEOUT = 2
 
 
 def get_arguments() -> Namespace:
@@ -109,7 +109,8 @@ async def receive_image_callback(reader, writer, img_bytes: int,
 
         writer.close()
         await writer.wait_closed()
-
+        
+        start.clear()
         client_connected.clear()
     except Exception as e:
         raise e
@@ -259,7 +260,6 @@ async def control_task(
 
                 elif current_msg.key == "STOP":
                     await msg_queue.put(current_msg)
-                    start_event.clear()
                     # Wait for all the data to be saved in the file or showed on screen
                     while not image_queue.empty():
                         image = await image_queue.get()
@@ -272,7 +272,7 @@ async def control_task(
                             image_display.show_frame("Arducam", image)
                     if not no_show:
                         cv.destroyWindow("Arducam")
-                    
+
                     save_count = 0
 
                 elif current_msg.key == "EXPOSURE":
