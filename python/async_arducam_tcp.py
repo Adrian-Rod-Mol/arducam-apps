@@ -73,9 +73,8 @@ def get_arguments() -> Namespace:
     return parser.parse_args()
 
 
-async def receive_image_callback(reader, writer, img_bytes: int,
-                                 data_queue: asyncio.Queue, client_connected: asyncio.Event, start: asyncio.Event):
-    client_connected.set()
+async def read_image_task(reader: asyncio.StreamReader, img_bytes: int,
+                          data_queue: asyncio.Queue, client_connected: asyncio.Event, start: asyncio.Event):
     mean_time = 0
     count = 0
     while start.is_set():
@@ -93,11 +92,19 @@ async def receive_image_callback(reader, writer, img_bytes: int,
         except asyncio.TimeoutError:
             print_terminal(1, "Waiting for the server to send the image timed out.")
 
-    writer.close()
-    await writer.wait_closed()
     if count != 0:
         mean_time /= count
         print_terminal(0, f"Mean time elapsed receiving {count} images:  {mean_time / 1000000} ms")
+
+
+async def receive_image_callback(reader, writer, img_bytes: int,
+                                 data_queue: asyncio.Queue, client_connected: asyncio.Event, start: asyncio.Event):
+    client_connected.set()
+    await asyncio.shield(asyncio.create_task(read_image_task(reader, img_bytes, data_queue, client_connected, start)))
+
+    writer.close()
+    await writer.wait_closed()
+
     client_connected.clear()
 
 
@@ -109,7 +116,7 @@ async def receive_image_server(server_ip: str,
                                start: asyncio.Event):
     try:
         img_server = await asyncio.start_server(
-            lambda r, w:  asyncio.shield(receive_image_callback(r, w, img_bytes, data_queue, client_connected, start)),
+            lambda r, w:  receive_image_callback(r, w, img_bytes, data_queue, client_connected, start),
             server_ip, server_port)
         async with img_server:
             await img_server.serve_forever()
