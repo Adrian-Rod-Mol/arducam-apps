@@ -81,7 +81,7 @@ async def async_terminal(user_action_map: List[UserAction], process_msg_queue: a
     print("==================")
     print(user_action_menu)
     while not stop_asking:
-        index = await read_int("-->")
+        index = await read_int("--> ")
         if index < len(user_action_map):
             if user_action_map[index].require_value:
                 value = await read_int("--> Insert the value to be set:\n--> ")
