@@ -203,11 +203,10 @@ async def decode_task(current_res: dict,
                     count += 1
                 except asyncio.TimeoutError:
                     print_terminal(0, "Image queue empty. Decode process finished.")
-                    break
+                    start.clear()
                 except Exception as e:
                     raise e
 
-            start.clear()
             if count != 0:
                 mean_time /= count
                 print_terminal(0, f"Mean time elapsed processing {count} images:  {mean_time / 1000000} ms")
@@ -224,7 +223,6 @@ async def control_task(
         start_event: asyncio.Event,
         finish_event: asyncio.Event):
     try:
-
         while not finish_event.is_set():
 
             if not process_msg_queue.empty():
