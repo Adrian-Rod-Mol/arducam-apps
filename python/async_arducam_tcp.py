@@ -1,5 +1,4 @@
 import numpy as np
-import threading
 import asyncio
 import time
 from pathlib import Path
@@ -106,7 +105,7 @@ async def receive_image_callback(reader, writer, img_bytes: int,
                                  data_queue: asyncio.Queue, client_connected: asyncio.Event, start: asyncio.Event):
     print_terminal(0, "Image provider client connected.")
     client_connected.set()
-    await asyncio.shield(asyncio.create_task(read_image_task(reader, img_bytes, data_queue, client_connected, start)))
+    await asyncio.shield(asyncio.create_task(read_image_task(reader, img_bytes, data_queue, start)))
 
     writer.close()
     await writer.wait_closed()
@@ -128,7 +127,7 @@ async def receive_image_server(server_ip: str,
         async with img_server:
             await img_server.serve_forever()
     except asyncio.CancelledError:
-        pass
+        print_terminal(0, "Image server cancelled.")
     except Exception as e:
         raise e
 
@@ -154,7 +153,7 @@ async def receive_task(server_ip: str,
                 img_server_task.cancel()
 
     except Exception as e:
-        print(e)
+        raise e
 
     finally:
         print_terminal(0, "Image receiving task finished correctly.")
@@ -260,7 +259,7 @@ async def control_task(
                             file_path = capturing_folder.joinpath(filename)
                             image.tofile(file_path)
                             save_count += 1
-
+                    start_event.clear()
                     save_count = 0
 
                 elif current_msg.key == "EXPOSURE":
@@ -390,8 +389,10 @@ async def main():
 
     except Exception as e:
         print(e)
+        return 1
     finally:
         print("Code finished")
+        return 0
 
 
 if __name__ == '__main__':
