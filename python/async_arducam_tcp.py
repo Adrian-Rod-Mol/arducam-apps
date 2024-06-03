@@ -126,7 +126,8 @@ async def receive_task(server_ip: str,
                        finish: asyncio.Event):
     try:
         while not finish.is_set():
-            _, _ = await asyncio.wait([finish.wait(), start.wait()], return_when=asyncio.FIRST_COMPLETED)
+            while not finish.is_set() or not start.is_set():
+                await asyncio.sleep(0.2)
             if finish.is_set():
                 break
             elif start.is_set():
@@ -154,7 +155,9 @@ async def decode_task(current_res: dict,
         while not finish.is_set():
             count = 0
             mean_time = 0
-            _, _ = await asyncio.wait([finish.wait(), client_connected.wait()], return_when=asyncio.FIRST_COMPLETED)
+            while not finish.is_set() or not client_connected.is_set():
+                await asyncio.sleep(0.2)
+
             if finish.is_set():
                 break
 
