@@ -52,7 +52,7 @@ int main() {
   try {
     std::string camera_repository = "/home/armolina/projects/arducam-apps";
     std::string camera_binaries = "/build/apps/arducam-raw";
-    std::string command_options = " -t 0 -o tcp://10.42.0.1:32233 --message-ip tcp://10.42.0.1:32211 --shutter 1ms --gain 1 --awbgains 1,1 --nopreview --verbose 2";
+    std::string command_options = " -t 0 -o tcp://10.42.0.1:32233 --message-ip tcp://10.42.0.1:32211 --shutter 1ms --gain 1 --awbgains 1,1 --nopreview --verbose 2" + " ";
     std::string command = "ifconfig | grep inet ";
     // Retry for 5 minutes until the Jetson provide IP to the Raspberry
     for (int i = 0; i <= 300; ++i) {
