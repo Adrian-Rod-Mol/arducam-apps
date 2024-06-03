@@ -85,9 +85,7 @@ async def read_image_task(reader: asyncio.StreamReader, img_bytes: int,
                 if data:
                     await data_queue.put(data)
                     bytes_to_receive -= len(data)
-                    print_terminal(1, f"Bytes remaining: {bytes_to_receive}")
-                else:
-                    print(data)
+
             mean_time += time.perf_counter_ns() - start_time
             count += 1
 
@@ -164,7 +162,7 @@ async def receive_task(server_ip: str,
     finally:
         if img_server_task is not None:
             img_server_task.cancel()
-            
+
         print_terminal(0, "Image receiving task finished correctly.")
 
 
@@ -193,7 +191,7 @@ async def decode_task(current_res: dict,
                     while data_received < img_bytes:
                         data = await asyncio.wait_for(data_queue.get(), LOOP_TIMEOUT)
                         if len(data) != 0:
-                            image[data_received:len(data)] = np.frombuffer(data, np.uint8)
+                            image[data_received:data_received + len(data)] = np.frombuffer(data, np.uint8)
                             data_received += len(data)
                             print_terminal(1, f"Bytes decoded: {data_received}")
                     image = image.view(np.uint16)
