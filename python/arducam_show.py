@@ -66,6 +66,7 @@ def main():
     image_path_list = input_path.glob("*.raw")
     index = 0
     image_path_sorted = sorted(image_path_list, key=lambda x: int(x.stem))
+    image_display.setup_window("Arducam")
     while True:
         image = read_arducam_image(image_path_sorted[index], current_res)
         key = image_display.study_frame("Arducam", image, index)
