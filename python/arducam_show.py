@@ -2,9 +2,7 @@ from pathlib import Path
 from argparse import ArgumentParser, Namespace
 from src.utils import (
     read_arducam_image,
-    ComputerScreen,
-    show_image,
-    generate_arducam_mosaic,
+    ImageDisplay
 )
 
 resolution_map = {
@@ -58,12 +56,7 @@ def main():
         return
 
     # Default window size
-    window_size = (660, 480)
-    image_shape = (current_res["width"], current_res["height"])
-    screen_size = ComputerScreen.get_screen_size(0)
-    screen = ComputerScreen(*screen_size)
-    window_size = screen.get_width_with_aspect_ratio(*image_shape)
-    window_size = (int(window_size[1] * 0.95), int(window_size[0] * 0.95))
+    image_display = ImageDisplay(0, current_res["width"], current_res["height"])
 
     input_path = Path(args.input_folder)
     if not input_path.is_dir():
@@ -71,11 +64,17 @@ def main():
         return False
 
     image_path_list = input_path.glob("*.raw")
+    index = 0
     image_path_sorted = sorted(image_path_list, key=lambda x: int(x.stem))
-    for image_path in image_path_sorted:
-        image = read_arducam_image(image_path, current_res)
-        mosaic = generate_arducam_mosaic(image)
-        show_image("Arducam", mosaic, args.ms, window_size, (0, 0))
+    while True:
+        image = read_arducam_image(image_path_sorted[index], current_res)
+        key = image_display.study_frame("Arducam", image, index)
+        if key == ord('a') and index > 0:
+            index -= 1
+        elif key == ord('d') and index < len(image_path_sorted) - 1:
+            index += 1
+        elif key == ord('q'):
+            break
 
 
 if __name__ == "__main__":

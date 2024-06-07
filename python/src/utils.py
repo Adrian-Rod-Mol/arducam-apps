@@ -49,6 +49,7 @@ class ImageDisplay:
 
         self.skip_count = 0
         self.frames_to_skip = np.floor(framerate / 5)
+        self.font = cv.FONT_HERSHEY_SIMPLEX
 
     @staticmethod
     def get_screen_size(screen_id: int) -> Tuple[int, int]:
@@ -89,6 +90,15 @@ class ImageDisplay:
             self.skip_count = 0
         else:
             self.skip_count += 1
+
+    def study_frame(self, name: str, frame: np.ndarray, index: int) -> int:
+        mosaic = generate_arducam_mosaic(frame)
+        cv.putText(mosaic, str(index), (0,0), self.font, 2, (0, 255, 0), 2, cv.LINE_AA)
+        cv.imshow(name, mosaic)
+        key = cv.waitKey(0) & 0xFF
+        return key
+
+
 
 
 def show_image(
