@@ -93,12 +93,10 @@ class ImageDisplay:
 
     def study_frame(self, name: str, frame: np.ndarray, index: int) -> int:
         mosaic = generate_arducam_mosaic(frame)
-        cv.putText(mosaic, str(index), (0,0), self.font, 2, (0, 255, 0), 2, cv.LINE_AA)
+        cv.putText(mosaic, str(index), (0, 0), self.font, 2, (0, 255, 0), 2, cv.LINE_AA)
         cv.imshow(name, mosaic)
         key = cv.waitKey(0) & 0xFF
         return key
-
-
 
 
 def show_image(
@@ -155,10 +153,9 @@ def generate_arducam_mosaic(image: np.ndarray) -> np.ndarray:
     return mosaic
 
 
-def arducam_mosaic_thread(input_queue: queue.Queue, output_queue: queue.Queue, stop_event : threading.Event):
+def arducam_mosaic_thread(input_queue: queue.Queue, output_queue: queue.Queue, stop_event: threading.Event):
     while not stop_event.is_set():
         if not input_queue.empty():
             image = input_queue.get()
             mosaic = generate_arducam_mosaic(image)
             output_queue.put(mosaic)
-

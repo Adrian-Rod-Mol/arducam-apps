@@ -8,3 +8,4 @@ image/jpeg.cpp
 venv
 python/outputs
 *.pyc
+python/src/__pycache__/utils.cpython-310.pyc
