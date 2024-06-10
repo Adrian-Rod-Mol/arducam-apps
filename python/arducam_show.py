@@ -67,7 +67,7 @@ def blue_demosaicing(image, out_image, image_data):
             else:
                 if col_odd_or_even == 0:
                     # If the column is even, an interpolation between the superior and inferior blue is made
-                    new_blue = (image[image_data[0] + pos - image_data[3]] + image[image_data[0] + pos + image_data[3]]) / 2
+                    new_blue = (image[image_data[0] + pos - image_data[3]+1] + image[image_data[0] + pos + image_data[3]+1]) / 2
                     out_image[image_data[0] + pos] = new_blue
                 else:
                     if col_index == (image_data[3] - 1):
