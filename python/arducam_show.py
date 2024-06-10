@@ -2,6 +2,7 @@ from pathlib import Path
 from argparse import ArgumentParser, Namespace
 from numba import cuda
 import numba
+import cv2 as cv
 import numpy as np
 from src.utils import (
     read_arducam_image,
@@ -15,6 +16,7 @@ resolution_map = {
     "HIGH": {"width": 4056, "height": 3040, "band_width": int(4056 / 2), "band_height": int(3040 / 2), "framerate": 15}
 }
 
+
 @cuda.jit
 def gpu_reflectance(image, white, black, reflectance):
     tx = cuda.threadIdx.x
@@ -22,7 +24,7 @@ def gpu_reflectance(image, white, black, reflectance):
     bd = cuda.blockDim.x
     pos = bx * bd + tx
     if pos < image.shape[0]:
-        value = (image[pos] - black[pos]*0.8) / (white[pos] - black[pos]*0.8)
+        value = (image[pos] - black[pos] * 0.8) / (white[pos] - black[pos] * 0.8)
         if value < 0:
             value = 0
         elif value > 1:
@@ -87,6 +89,18 @@ def get_arguments() -> Namespace:
     return args
 
 
+def calculate_filter_kernel(white_ref: np.ndarray, current_res) -> np.ndarray:
+    white_resh = white_ref.reshape(4, current_res["band_height"], current_res["band_width"])
+    kernel = []
+    for i in range(4):
+        band_kernel = white_resh[i, 0:2, 0:2].astype(np.float32) / 4095
+        band_kernel = band_kernel / np.sum(band_kernel)
+        print(band_kernel)
+        kernel.append(band_kernel)
+    kernel_array = np.stack(kernel, axis=-1)
+    return kernel_array
+
+
 def main():
     args = get_arguments()
 
@@ -116,19 +130,26 @@ def main():
                 (current_res["height"] * current_res["width"] + threads_per_block - 1) / threads_per_block))
         black_cal = np.fromfile(args.black_calibration, dtype=np.uint16)
         white_cal = np.fromfile(args.white_calibration, dtype=np.uint16)
+        kernel = calculate_filter_kernel(white_cal, current_res)
         black_d = cuda.to_device(black_cal)
         white_d = cuda.to_device(white_cal)
         while True:
             raw = np.fromfile(image_path_sorted[index], dtype=np.uint16)
             raw_d = cuda.to_device(raw)
-            reflectance = np.zeros(shape=current_res["width"]*current_res["height"], dtype=np.float32)
+            reflectance = np.zeros(shape=current_res["width"] * current_res["height"], dtype=np.float32)
             ref_d = cuda.to_device(reflectance)
             gpu_reflectance[blocks_per_grid, threads_per_block](raw_d, white_d, black_d, ref_d)
             image = ref_d.copy_to_host()
-            if np.any(image < 0) or np.any(image > 4095):
-                print("Ups!")
             image = image.reshape(4, current_res["band_height"], current_res["band_width"])
-            key = image_display.study_frame("Arducam", image, index)
+            filtered_bands = []
+            for i in range(4):
+                band = image[i, :, :]
+                band_kernel = kernel[i, :, :]
+                filtered_band = cv.filter2D(band, -1, band_kernel)
+                filtered_bands.append(filtered_band)
+
+            filtered_image = np.stack(filtered_bands, axis=-1)
+            key = image_display.study_frame("Arducam", filtered_image, index)
             if key == ord('a') and index > 0:
                 index -= 1
             elif key == ord('d') and index < len(image_path_sorted) - 1:
