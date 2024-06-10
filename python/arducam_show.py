@@ -67,7 +67,9 @@ def blue_demosaicing(image, out_image, image_data):
             else:
                 if col_odd_or_even == 0:
                     # If the column is even, an interpolation between the superior and inferior blue is made
-                    new_blue = (image[image_data[0] + pos - image_data[3]+1] + image[image_data[0] + pos + image_data[3]+1]) / 2
+                    prev = image_data[0] + pos - image_data[3]
+                    post = image_data[0] + pos + image_data[3]
+                    new_blue = (image[prev] + image[post]) / 2
                     out_image[image_data[0] + pos] = new_blue
                 else:
                     if col_index == (image_data[3] - 1):
@@ -255,17 +257,15 @@ def main():
             gpu_reflectance[blocks_per_grid, threads_per_block](raw_d, white_d, black_d, ref_d)
             corrected_image = np.zeros(shape=current_res["width"] * current_res["height"], dtype=np.float32)
             corrected_d = cuda.to_device(corrected_image)
-            print(type_list)
             for i, image_type in enumerate(type_list):
                 if image_type == 2:
-                    print(i)
-                    image_data = cuda.to_device(np.array([
+                    arr = np.array([
                         i*current_res["band_width"] * current_res["band_height"],
                         current_res["band_width"] * current_res["band_height"],
                         current_res["band_height"],
                         current_res["band_width"]
-                    ], dtype=np.uint32))
-                    print(image_data)
+                    ], dtype=np.uint32)
+                    image_data = cuda.to_device(arr)
                     blue_demosaicing[correction_blocks_per_grid, threads_per_block](ref_d, corrected_d, image_data)
             image = corrected_d.copy_to_host().reshape(4, current_res["band_height"], current_res["band_width"])*4095
             key = image_display.study_frame("Arducam", image, index)
