@@ -31,10 +31,10 @@ def blue_demosaicing(image, out_image, image_data):
     bx = cuda.blockIdx.x
     bd = cuda.blockDim.x
     pos = bx * bd + tx
-    if pos < image_data[0]:
-        row_and_col_index = numba.float32(pos) / image_data[1]
+    if pos < image_data[1]:
+        row_and_col_index = numba.float32(pos) / image_data[3]
         row = numba.uint32(row_and_col_index)
-        col_index = numba.uint32(pos - row*image_data[1])
+        col_index = numba.uint32(pos - row*image_data[3])
         row_odd_or_even = row % 2
         col_odd_or_even = col_index % 2
         if row_odd_or_even == 0:
@@ -67,9 +67,7 @@ def blue_demosaicing(image, out_image, image_data):
             else:
                 if col_odd_or_even == 0:
                     # If the column is even, an interpolation between the superior and inferior blue is made
-                    prev = image_data[0] + pos - image_data[3]
-                    post = image_data[0] + pos + image_data[3]
-                    new_blue = (image[prev] + image[post]) / 2
+                    new_blue = (image[image_data[0] + pos - image_data[3]] + image[image_data[0] + pos + image_data[3]]) / 2
                     out_image[image_data[0] + pos] = new_blue
                 else:
                     if col_index == (image_data[3] - 1):
