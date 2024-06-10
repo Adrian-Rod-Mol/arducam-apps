@@ -118,7 +118,7 @@ def main():
             raw_d = cuda.to_device(raw)
             reflectance = np.zeros(shape=current_res["width"]*current_res["height"], dtype=np.float32)
             ref_d = cuda.to_device(reflectance)
-            gpu_reflectance[threads_per_block, blocks_per_grid](raw_d, white_d, black_d, ref_d)
+            gpu_reflectance[blocks_per_grid, threads_per_block](raw_d, white_d, black_d, ref_d)
             image = ref_d.copy_to_host()
             key = image_display.study_frame("Arducam", image, index)
             if key == ord('a') and index > 0:
