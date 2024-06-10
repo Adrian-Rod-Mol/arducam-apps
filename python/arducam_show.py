@@ -32,6 +32,8 @@ def gpu_reflectance(image, white, black, reflectance):
         elif value > 1:
             value = 1
         reflectance[pos] = value * 4095
+
+
 @cuda.jit
 def gpu_reflectance_with_kernel(image, white, black, kernel, reflectance):
     tx = cuda.threadIdx.x
@@ -40,7 +42,7 @@ def gpu_reflectance_with_kernel(image, white, black, kernel, reflectance):
     pos = bx * bd + tx
     if pos < image.shape[0]:
         image_float = numpy.float32(image[pos])
-        first = image_float*kernel[pos] - black[pos] * 0.8
+        first = image_float * kernel[pos] - black[pos] * 0.8
         white_float = numpy.float32(white[pos])
         second = white_float * kernel[pos] - black[pos] * 0.8
         value = first / second
@@ -107,22 +109,21 @@ def get_arguments() -> Namespace:
 
     return args
 
+
 def select_interpolation_type(white_ref: np.ndarray, current_res) -> list:
     white_resh = white_ref.reshape(4, current_res["band_height"], current_res["band_width"])
     type_list = []
     for i in range(white_resh.shape[0]):
-        half_height = int(current_res["band_height"]/2)
-        half_width = int(current_res["band_width"]/2)
-        pixel_square = white_resh[i, half_height:half_height+2, half_width:half_width+2]
+        half_height = int(current_res["band_height"] / 2)
+        half_width = int(current_res["band_width"] / 2)
+        pixel_square = white_resh[i, half_height:half_height + 2, half_width:half_width + 2]
 
-        pixel_square = pixel_square/np.max(pixel_square)
+        pixel_square = pixel_square / np.max(pixel_square)
         matrix = np.where(pixel_square > 0.9, True, False)
         print(pixel_square)
         print(matrix)
         type_list.append(1)
     return type_list
-
-
 
 
 def calculate_filter_kernel(white_ref: np.ndarray, current_res) -> np.ndarray:
