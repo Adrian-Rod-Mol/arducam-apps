@@ -1,5 +1,7 @@
 from pathlib import Path
 from argparse import ArgumentParser, Namespace
+
+import numpy
 from numba import cuda
 import numba
 import cv2 as cv
@@ -37,7 +39,11 @@ def gpu_reflectance_with_kernel(image, white, black, kernel, reflectance):
     bd = cuda.blockDim.x
     pos = bx * bd + tx
     if pos < image.shape[0]:
-        value = (image[pos]*kernel[pos] - black[pos] * 0.8) / (white[pos]*kernel[pos] - black[pos] * 0.8)
+        image_float = numpy.float32(image[pos])
+        first = image_float*kernel[pos] - black[pos] * 0.8
+        white_float = numpy.float32(white[pos])
+        second = white_float * kernel[pos] - black[pos] * 0.8
+        value = first / second
         if value < 0:
             value = 0
         elif value > 1:
