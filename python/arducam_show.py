@@ -107,6 +107,7 @@ def calculate_filter_kernel(white_ref: np.ndarray, current_res) -> np.ndarray:
     kernel = np.empty((4, current_res["band_height"], current_res["band_width"]), dtype=np.float32)
     for i in range(4):
         band_max = np.max(white_resh[i, :, :].astype(np.float32))
+        print(band_max)
         band_kernel = band_max / white_resh[i, :, :]
         kernel[i, :, :] = band_kernel
     return kernel
@@ -141,8 +142,10 @@ def main():
                 (current_res["height"] * current_res["width"] + threads_per_block - 1) / threads_per_block))
         black_cal = np.fromfile(args.black_calibration, dtype=np.uint16)
         white_cal = np.fromfile(args.white_calibration, dtype=np.uint16)
-        kernel = calculate_filter_kernel(white_cal, current_res).flatten()
-        print(kernel)
+        kernel = calculate_filter_kernel(white_cal, current_res)
+        for i in range(4):
+            print(kernel[i, 0:4, 0:4])
+        kernel.flatten()
         kernel_d = cuda.to_device(kernel)
         black_d = cuda.to_device(black_cal)
         white_d = cuda.to_device(white_cal)
