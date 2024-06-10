@@ -25,9 +25,9 @@ def blue_demosaicing(out_image, image_data):
     bd = cuda.blockDim.x
     pos = bx * bd + tx
     if pos < image_data[0]:
-        row_and_col_index = numba.float32(pos / image_data[1])
+        row_and_col_index = numba.float32(pos) / image_data[1]
         row = numba.uint32(row_and_col_index)
-        col_index = numba.uint32((row_and_col_index - row)*image_data[1])
+        col_index = numba.uint32(pos - row*image_data[1])
         if col_index == 0:
             out_image[pos] = row
         else:
