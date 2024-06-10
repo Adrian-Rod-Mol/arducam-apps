@@ -15,7 +15,7 @@ resolution_map = {
     "HIGH": {"width": 4056, "height": 3040, "band_width": int(4056 / 2), "band_height": int(3040 / 2), "framerate": 15}
 }
 
-@cuda.jit(device=True)
+@cuda.jit
 def gpu_reflectance(image, white, black, reflectance):
     tx = cuda.threadIdx.x
     bx = cuda.blockIdx.x
