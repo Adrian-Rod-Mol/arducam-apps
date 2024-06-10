@@ -141,8 +141,9 @@ def main():
                 (current_res["height"] * current_res["width"] + threads_per_block - 1) / threads_per_block))
         black_cal = np.fromfile(args.black_calibration, dtype=np.uint16)
         white_cal = np.fromfile(args.white_calibration, dtype=np.uint16)
-        kernel = calculate_filter_kernel(white_cal, current_res)
-        kernel_d = cuda.to_device(kernel.flatten())
+        kernel = calculate_filter_kernel(white_cal, current_res).flatten()
+        print(kernel)
+        kernel_d = cuda.to_device(kernel)
         black_d = cuda.to_device(black_cal)
         white_d = cuda.to_device(white_cal)
         while True:
