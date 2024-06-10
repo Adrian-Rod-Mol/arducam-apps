@@ -91,9 +91,9 @@ def get_arguments() -> Namespace:
 
 def calculate_filter_kernel(white_ref: np.ndarray, current_res) -> np.ndarray:
     white_resh = white_ref.reshape(4, current_res["band_height"], current_res["band_width"])
-    kernel = np.empty((4, 2, 2), dtype=np.float32)
+    kernel = np.empty((4, 3, 3), dtype=np.float32)
     for i in range(4):
-        band_kernel = white_resh[i, 0:2, 0:2].astype(np.float32) / 4095
+        band_kernel = white_resh[i, int(current_res["band_height"]/2)-1:int(current_res["band_height"]/2) + 2, int(current_res["band_width"]/2)-1:int(current_res["band_width"]/2) + 2].astype(np.float32) / 4095
         band_kernel = band_kernel / np.sum(band_kernel)
         kernel[i, :, :] = band_kernel
     print(kernel)
