@@ -113,8 +113,8 @@ def select_interpolation_type(white_ref: np.ndarray, current_res) -> list:
     for i in range(white_resh.shape[0]):
         half_height = int(current_res["band_height"]/2)
         half_width = int(current_res["band_width"]/2)
-        print(pixel_square)
         pixel_square = white_resh[i, half_height:half_height+2, half_width:half_width+2]
+        print(pixel_square)
         pixel_square = pixel_square/np.max(pixel_square)
         print(pixel_square)
         type_list.append(1)
