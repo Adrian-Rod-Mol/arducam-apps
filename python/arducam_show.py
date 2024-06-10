@@ -91,14 +91,13 @@ def get_arguments() -> Namespace:
 
 def calculate_filter_kernel(white_ref: np.ndarray, current_res) -> np.ndarray:
     white_resh = white_ref.reshape(4, current_res["band_height"], current_res["band_width"])
-    kernel = []
+    kernel = np.empty((4, 2, 2), dtype=np.float32)
     for i in range(4):
         band_kernel = white_resh[i, 0:2, 0:2].astype(np.float32) / 4095
         band_kernel = band_kernel / np.sum(band_kernel)
-        print(band_kernel)
-        kernel.append(band_kernel)
-    kernel_array = np.stack(kernel, axis=-1)
-    return kernel_array
+        kernel[i, :, :] = band_kernel
+    print(kernel)
+    return kernel
 
 
 def main():
@@ -141,14 +140,13 @@ def main():
             gpu_reflectance[blocks_per_grid, threads_per_block](raw_d, white_d, black_d, ref_d)
             image = ref_d.copy_to_host()
             image = image.reshape(4, current_res["band_height"], current_res["band_width"])
-            filtered_bands = []
+            filtered_image = np.empty((4, current_res["band_height"], current_res["band_width"]), dtype=np.uint16)
             for i in range(4):
                 band = image[i, :, :]
                 band_kernel = kernel[i, :, :]
                 filtered_band = cv.filter2D(band, -1, band_kernel)
-                filtered_bands.append(filtered_band)
+                filtered_image[i, :, :] = filtered_band
 
-            filtered_image = np.stack(filtered_bands, axis=-1)
             key = image_display.study_frame("Arducam", filtered_image, index)
             if key == ord('a') and index > 0:
                 index -= 1
