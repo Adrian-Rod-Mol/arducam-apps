@@ -151,7 +151,7 @@ def main():
         kernel = calculate_filter_kernel(white_cal, current_res)
         for i in range(4):
             print(kernel[i, 0:4, 0:4])
-        kernel.flatten()
+        kernel = kernel.flatten()
         kernel_d = cuda.to_device(kernel)
         black_d = cuda.to_device(black_cal)
         white_d = cuda.to_device(white_cal)
