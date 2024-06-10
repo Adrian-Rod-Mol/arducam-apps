@@ -40,48 +40,48 @@ def blue_demosaicing(image, out_image, image_data):
         if row_odd_or_even == 0:
             # A real blue value, copied directly to the output image
             if col_odd_or_even == 0:
-                out_image[pos] = image[image_data[0]+pos]
+                out_image[image_data[0] + pos] = image[image_data[0]+pos]
             else:
                 # Can't do an interpolation with the last value. The previous blue is assigned
                 if col_index == (image_data[3] - 1):
-                    out_image[pos] = image[image_data[0] + pos - 1]
+                    out_image[image_data[0] + pos] = image[image_data[0] + pos - 1]
                 # In the first row, an interpolation between the previous blue value and the next is made
                 else:
                     new_blue = (image[image_data[0] + pos - 1] + image[image_data[0] + pos + 1]) / 2
-                    out_image[pos] = new_blue
+                    out_image[image_data[0] + pos] = new_blue
         else:
             # On the last row
             if row == image_data[2] - 1:
                 if col_odd_or_even == 0:
                     # If it is even, the previous blue is copied
-                    out_image[pos] = image[image_data[0] + pos - image_data[3]]
+                    out_image[image_data[0] + pos] = image[image_data[0] + pos - image_data[3]]
                 else:
                     if col_index == (image_data[3] - 1):
-                        out_image[pos] = image[image_data[0] + pos - image_data[3] - 1]
+                        out_image[image_data[0] + pos] = image[image_data[0] + pos - image_data[3] - 1]
                     # Otherwise, the two superior columns are interpolated
                     else:
                         new_blue = (image[image_data[0] + pos - image_data[3] - 1]
                                     + image[image_data[0] + pos - image_data[3] + 1]) / 2
-                        out_image[pos] = new_blue
+                        out_image[image_data[0] + pos] = new_blue
 
             else:
                 if col_odd_or_even == 0:
                     # If the column is even, an interpolation between the superior and inferior blue is made
                     new_blue = (image[image_data[0] + pos - image_data[3]] + image[image_data[0] + pos + image_data[3]]) / 2
-                    out_image[pos] = new_blue
+                    out_image[image_data[0] + pos] = new_blue
                 else:
                     if col_index == (image_data[3] - 1):
                         # If is the last column, the interpolation is only between the two previous corners
                         new_blue = (image[image_data[0] + pos - image_data[3] - 1]
                                     + image[image_data[0] + pos + image_data[3] - 1]) / 2
-                        out_image[pos] = new_blue
+                        out_image[image_data[0] + pos] = new_blue
                     else:
                         # If is odd, an interpolation between the four blues around the position is made
                         new_blue = (image[image_data[0] + pos - image_data[3] - 1]
                                     + image[image_data[0] + pos - image_data[3] + 1]
                                     + image[image_data[0] + pos + image_data[3] - 1]
                                     + image[image_data[0] + pos + image_data[3] + 1]) / 4
-                        out_image[pos] = new_blue
+                        out_image[image_data[0] + pos] = new_blue
 
 
 @cuda.jit
