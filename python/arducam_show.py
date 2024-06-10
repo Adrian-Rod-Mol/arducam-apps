@@ -129,7 +129,7 @@ def main():
                 (current_res["height"] * current_res["width"] + threads_per_block - 1) / threads_per_block))
         black_cal = np.fromfile(args.black_calibration, dtype=np.uint16)
         white_cal = np.fromfile(args.white_calibration, dtype=np.uint16)
-        kernel = calculate_filter_kernel(white_cal, current_res)
+        # kernel = calculate_filter_kernel(white_cal, current_res)
         black_d = cuda.to_device(black_cal)
         white_d = cuda.to_device(white_cal)
         while True:
@@ -140,14 +140,14 @@ def main():
             gpu_reflectance[blocks_per_grid, threads_per_block](raw_d, white_d, black_d, ref_d)
             image = ref_d.copy_to_host()
             image = image.reshape(4, current_res["band_height"], current_res["band_width"])
-            filtered_image = np.empty((4, current_res["band_height"], current_res["band_width"]), dtype=np.uint16)
-            for i in range(4):
-                band = image[i, :, :]
-                band_kernel = kernel[i, :, :]
-                filtered_band = cv.filter2D(band, -1, band_kernel)
-                filtered_image[i, :, :] = filtered_band
+            # filtered_image = np.empty((4, current_res["band_height"], current_res["band_width"]), dtype=np.uint16)
+            # for i in range(4):
+            #     band = image[i, :, :]
+            #     band_kernel = kernel[i, :, :]
+            #     filtered_band = cv.filter2D(band, -1, band_kernel)
+            #     filtered_image[i, :, :] = filtered_band
 
-            key = image_display.study_frame("Arducam", filtered_image, index)
+            key = image_display.study_frame("Arducam", image, index)
             if key == ord('a') and index > 0:
                 index -= 1
             elif key == ord('d') and index < len(image_path_sorted) - 1:
