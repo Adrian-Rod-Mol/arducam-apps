@@ -116,7 +116,7 @@ def select_interpolation_type(white_ref: np.ndarray, current_res) -> list:
         pixel_square = white_resh[i, half_height:half_height+2, half_width:half_width+2]
 
         pixel_square = pixel_square/np.max(pixel_square)
-        matrix = np.where(pixel_square > 0.9, pixel_square)
+        matrix = np.where(pixel_square > 0.9, True, False)
         print(pixel_square)
         print(matrix)
         type_list.append(1)
