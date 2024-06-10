@@ -22,7 +22,12 @@ def gpu_reflectance(image, white, black, reflectance):
     bd = cuda.blockDim.x
     pos = bx * bd + tx
     if pos < image.shape[0]:
-        reflectance[pos] = abs((image[pos] - black[pos]) / (white[pos] - black[pos])) * 4095
+        value = (image[pos] - black[pos]) / (white[pos] - black[pos])
+        if value < 0:
+            value = 0
+        elif value > 1:
+            value = 1
+        reflectance[pos] = value * 4095
 
 
 def get_arguments() -> Namespace:
