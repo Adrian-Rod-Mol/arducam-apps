@@ -19,7 +19,14 @@ resolution_map = {
 }
 
 @cuda.jit
-def blue_demosaicing(out_image, image_data):
+def blue_demosaicing(image, out_image, image_data):
+    """
+    image_data:
+        0: start position of the image
+        1: size of the image
+        2: total number of rows
+        3: total number of columns
+    """
     tx = cuda.threadIdx.x
     bx = cuda.blockIdx.x
     bd = cuda.blockDim.x
@@ -28,11 +35,53 @@ def blue_demosaicing(out_image, image_data):
         row_and_col_index = numba.float32(pos) / image_data[1]
         row = numba.uint32(row_and_col_index)
         col_index = numba.uint32(pos - row*image_data[1])
-        if col_index == 0:
-            out_image[pos] = row
+        row_odd_or_even = row % 2
+        col_odd_or_even = col_index % 2
+        if row_odd_or_even == 0:
+            # A real blue value, copied directly to the output image
+            if col_odd_or_even == 0:
+                out_image[pos] = image[image_data[0]+pos]
+            else:
+                # Can't do an interpolation with the last value. The previous blue is assigned
+                if col_index == (image_data[3] - 1):
+                    out_image[pos] = image[image_data[0] + pos - 1]
+                # In the first row, an interpolation between the previous blue value and the next is made
+                else:
+                    new_blue = (image[image_data[0] + pos - 1] + image[image_data[0] + pos + 1]) / 2
+                    out_image[pos] = new_blue
         else:
-            out_image[pos] = col_index
+            # On the last row
+            if row == image_data[2] - 1:
+                if col_odd_or_even == 0:
+                    # If it is even, the previous blue is copied
+                    out_image[pos] = image[image_data[0] + pos - image_data[3]]
+                else:
+                    if col_index == (image_data[3] - 1):
+                        out_image[pos] = image[image_data[0] + pos - image_data[3] - 1]
+                    # Otherwise, the two superior columns are interpolated
+                    else:
+                        new_blue = (image[image_data[0] + pos - image_data[3] - 1]
+                                    + image[image_data[0] + pos - image_data[3] + 1]) / 2
+                        out_image[pos] = new_blue
 
+            else:
+                if col_odd_or_even == 0:
+                    # If the column is even, an interpolation between the superior and inferior blue is made
+                    new_blue = (image[image_data[0] + pos - image_data[3]] + image[image_data[0] + pos + image_data[3]]) / 2
+                    out_image[pos] = new_blue
+                else:
+                    if col_index == (image_data[3] - 1):
+                        # If is the last column, the interpolation is only between the two previous corners
+                        new_blue = (image[image_data[0] + pos - image_data[3] - 1]
+                                    + image[image_data[0] + pos + image_data[3] - 1]) / 2
+                        out_image[pos] = new_blue
+                    else:
+                        # If is odd, an interpolation between the four blues around the position is made
+                        new_blue = (image[image_data[0] + pos - image_data[3] - 1]
+                                    + image[image_data[0] + pos - image_data[3] + 1]
+                                    + image[image_data[0] + pos + image_data[3] - 1]
+                                    + image[image_data[0] + pos + image_data[3] + 1]) / 4
+                        out_image[pos] = new_blue
 
 
 @cuda.jit
@@ -204,17 +253,18 @@ def main():
             reflectance = np.zeros(shape=current_res["width"] * current_res["height"], dtype=np.float32)
             ref_d = cuda.to_device(reflectance)
             gpu_reflectance[blocks_per_grid, threads_per_block](raw_d, white_d, black_d, ref_d)
-            positions = np.zeros(shape=current_res["band_width"] * current_res["band_height"], dtype=np.float32)
-            pos_d = cuda.to_device(positions)
-            image_data = cuda.to_device(np.array([
-                current_res["band_width"] * current_res["band_height"],
-                current_res["band_width"]
-            ], dtype=np.uint32))
-            blue_demosaicing[correction_blocks_per_grid, threads_per_block](pos_d, image_data)
-            positions = pos_d.copy_to_host().reshape(current_res["band_height"], current_res["band_width"])
-            numpy.savetxt("foo.csv", positions, delimiter=",")
-            image = ref_d.copy_to_host()
-            image = image.reshape(4, current_res["band_height"], current_res["band_width"])
+            corrected_image = np.zeros(shape=current_res["width"] * current_res["height"], dtype=np.float32)
+            image_c = cuda.to_device(corrected_image)
+            for i, image_type in enumerate(type_list):
+                if image_type == 2:
+                    image_data = cuda.to_device(np.array([
+                        i*current_res["band_width"] * current_res["band_height"],
+                        current_res["band_width"] * current_res["band_height"],
+                        current_res["band_height"],
+                        current_res["band_width"]
+                    ], dtype=np.uint32))
+                    blue_demosaicing[correction_blocks_per_grid, threads_per_block](image_c, image_data)
+            image = image_c.reshape(4, current_res["band_height"], current_res["band_width"])*4095
             key = image_display.study_frame("Arducam", image, index)
             if key == ord('a') and index > 0:
                 index -= 1
