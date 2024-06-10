@@ -255,14 +255,17 @@ def main():
             gpu_reflectance[blocks_per_grid, threads_per_block](raw_d, white_d, black_d, ref_d)
             corrected_image = np.zeros(shape=current_res["width"] * current_res["height"], dtype=np.float32)
             corrected_d = cuda.to_device(corrected_image)
+            print(type_list)
             for i, image_type in enumerate(type_list):
                 if image_type == 2:
+                    print(i)
                     image_data = cuda.to_device(np.array([
                         i*current_res["band_width"] * current_res["band_height"],
                         current_res["band_width"] * current_res["band_height"],
                         current_res["band_height"],
                         current_res["band_width"]
                     ], dtype=np.uint32))
+                    print(image_data)
                     blue_demosaicing[correction_blocks_per_grid, threads_per_block](ref_d, corrected_d, image_data)
             image = corrected_d.copy_to_host().reshape(4, current_res["band_height"], current_res["band_width"])*4095
             key = image_display.study_frame("Arducam", image, index)
