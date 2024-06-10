@@ -107,6 +107,21 @@ def get_arguments() -> Namespace:
 
     return args
 
+def select_interpolation_type(white_ref: np.ndarray, current_res) -> list:
+    white_resh = white_ref.reshape(4, current_res["band_height"], current_res["band_width"])
+    type_list = []
+    for i in range(white_resh.shape[0]):
+        half_height = int(current_res["band_height"]/2)
+        half_width = int(current_res["band_width"]/2)
+        print(pixel_square)
+        pixel_square = white_resh[i, half_height:half_height+2, half_width:half_width+2]
+        pixel_square = pixel_square/np.max(pixel_square)
+        print(pixel_square)
+        type_list.append(1)
+    return type_list
+
+
+
 
 def calculate_filter_kernel(white_ref: np.ndarray, current_res) -> np.ndarray:
     white_resh = white_ref.reshape(4, current_res["band_height"], current_res["band_width"])
@@ -148,6 +163,7 @@ def main():
                 (current_res["height"] * current_res["width"] + threads_per_block - 1) / threads_per_block))
         black_cal = np.fromfile(args.black_calibration, dtype=np.uint16)
         white_cal = np.fromfile(args.white_calibration, dtype=np.uint16)
+        a = select_interpolation_type(white_cal, current_res)
         black_d = cuda.to_device(black_cal)
         white_d = cuda.to_device(white_cal)
         while True:
