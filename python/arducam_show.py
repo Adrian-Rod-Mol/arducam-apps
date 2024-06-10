@@ -211,7 +211,7 @@ def main():
                 current_res["band_width"]
             ], dtype=np.uint32))
             blue_demosaicing[correction_blocks_per_grid, threads_per_block](pos_d, image_data)
-            positions = pos_d.copy_to_host()
+            positions = pos_d.copy_to_host().reshape(current_res["band_height"], current_res["band_width"])
             numpy.savetxt("foo.csv", positions, delimiter=",")
             image = ref_d.copy_to_host()
             image = image.reshape(4, current_res["band_height"], current_res["band_width"])
