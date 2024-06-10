@@ -264,7 +264,7 @@ def main():
                         current_res["band_width"]
                     ], dtype=np.uint32))
                     blue_demosaicing[correction_blocks_per_grid, threads_per_block](ref_d, corrected_d, image_data)
-            image = corrected_d.reshape(4, current_res["band_height"], current_res["band_width"])*4095
+            image = corrected_d.copy_to_host().reshape(4, current_res["band_height"], current_res["band_width"])*4095
             key = image_display.study_frame("Arducam", image, index)
             if key == ord('a') and index > 0:
                 index -= 1
