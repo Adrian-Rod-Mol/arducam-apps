@@ -18,6 +18,22 @@ resolution_map = {
     "HIGH": {"width": 4056, "height": 3040, "band_width": int(4056 / 2), "band_height": int(3040 / 2), "framerate": 15}
 }
 
+@cuda.jit
+def blue_demosaicing(out_image, image_data):
+    tx = cuda.threadIdx.x
+    bx = cuda.blockIdx.x
+    bd = cuda.blockDim.x
+    pos = bx * bd + tx
+    if pos < image_data[0]:
+        row_and_col_index = numba.float32(pos / image_data[1])
+        row = numba.uint32(row_and_col_index)
+        col_index = numba.uint32((row_and_col_index - row)*image_data[1])
+        if col_index == 0:
+            out_image[pos] = row
+        else:
+            out_image[pos] = col_index
+
+
 
 @cuda.jit
 def gpu_reflectance(image, white, black, reflectance):
@@ -31,7 +47,7 @@ def gpu_reflectance(image, white, black, reflectance):
             value = 0
         elif value > 1:
             value = 1
-        reflectance[pos] = value * 4095
+        reflectance[pos] = value
 
 
 @cuda.jit
@@ -41,9 +57,9 @@ def gpu_reflectance_with_kernel(image, white, black, kernel, reflectance):
     bd = cuda.blockDim.x
     pos = bx * bd + tx
     if pos < image.shape[0]:
-        image_float = numpy.float32(image[pos])
+        image_float = numba.float32(image[pos])
         first = image_float * kernel[pos] - black[pos] * 0.8
-        white_float = numpy.float32(white[pos])
+        white_float = numba.float32(white[pos])
         second = white_float * kernel[pos] - black[pos] * 0.8
         value = first / second
         if value < 0:
@@ -133,7 +149,6 @@ def select_interpolation_type(white_ref: np.ndarray, current_res) -> list:
         elif np.all(matrix == np.array([[True, True], [True, True]])):
             # Great response in all filters
             type_list.append(3)
-    print(type_list)
     return type_list
 
 
@@ -175,9 +190,12 @@ def main():
         blocks_per_grid = int(
             np.ceil(
                 (current_res["height"] * current_res["width"] + threads_per_block - 1) / threads_per_block))
+        correction_blocks_per_grid = int(
+            np.ceil(
+                (current_res["band_height"] * current_res["band_width"] + threads_per_block - 1) / threads_per_block))
         black_cal = np.fromfile(args.black_calibration, dtype=np.uint16)
         white_cal = np.fromfile(args.white_calibration, dtype=np.uint16)
-        a = select_interpolation_type(white_cal, current_res)
+        type_list = select_interpolation_type(white_cal, current_res)
         black_d = cuda.to_device(black_cal)
         white_d = cuda.to_device(white_cal)
         while True:
@@ -186,6 +204,15 @@ def main():
             reflectance = np.zeros(shape=current_res["width"] * current_res["height"], dtype=np.float32)
             ref_d = cuda.to_device(reflectance)
             gpu_reflectance[blocks_per_grid, threads_per_block](raw_d, white_d, black_d, ref_d)
+            positions = np.zeros(shape=current_res["band_width"] * current_res["band_height"], dtype=np.float32)
+            pos_d = cuda.to_device(positions)
+            image_data = cuda.to_device(np.array([
+                current_res["band_width"] * current_res["band_height"],
+                current_res["band_width"]
+            ], dtype=np.uint32))
+            blue_demosaicing[correction_blocks_per_grid, threads_per_block](pos_d, image_data)
+            positions = pos_d.copy_to_host()
+            numpy.savetxt("foo.csv", positions, delimiter=",")
             image = ref_d.copy_to_host()
             image = image.reshape(4, current_res["band_height"], current_res["band_width"])
             key = image_display.study_frame("Arducam", image, index)
