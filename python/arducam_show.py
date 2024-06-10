@@ -121,16 +121,16 @@ def select_interpolation_type(white_ref: np.ndarray, current_res) -> list:
         pixel_square = pixel_square / np.max(pixel_square)
         matrix = np.where(pixel_square > 0.9, True, False)
 
-        if matrix == np.array([[False, False], [False, True]]):
+        if np.all(matrix == np.array([[False, False], [False, True]])):
             # Great response in the red filter
             type_list.append(0)
-        elif matrix == np.array([[False, True], [True, False]]):
+        elif np.all(matrix == np.array([[False, True], [True, False]])):
             # Great response in the green filter
             type_list.append(1)
-        elif matrix == np.array([[True, False], [False, False]]):
+        elif np.all(matrix == np.array([[True, False], [False, False]])):
             # Great response in the blue filter
             type_list.append(2)
-        elif matrix == np.array([[True, True], [True, True]]):
+        elif np.all(matrix == np.array([[True, True], [True, True]])):
             # Great response in all filters
             type_list.append(3)
     print(type_list)
