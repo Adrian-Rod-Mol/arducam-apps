@@ -120,6 +120,8 @@ def main():
             ref_d = cuda.to_device(reflectance)
             gpu_reflectance[blocks_per_grid, threads_per_block](raw_d, white_d, black_d, ref_d)
             image = ref_d.copy_to_host()
+            if np.any(image < 0) or np.any(image > 4095):
+                print("Ups!")
             image = image.reshape(4, current_res["band_height"], current_res["band_width"])
             key = image_display.study_frame("Arducam", image, index)
             if key == ord('a') and index > 0:
