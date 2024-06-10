@@ -22,7 +22,7 @@ def gpu_reflectance(image, white, black, reflectance):
     bd = cuda.blockDim.x
     pos = bx * bd + tx
     if pos < image.shape[0]:
-        reflectance[pos] += (image[pos] - black[pos]) / (white[pos] - black[pos])
+        reflectance[pos] = abs((image[pos] - black[pos]) / (white[pos] - black[pos])) * 4095
 
 
 def get_arguments() -> Namespace:
@@ -120,7 +120,6 @@ def main():
             ref_d = cuda.to_device(reflectance)
             gpu_reflectance[blocks_per_grid, threads_per_block](raw_d, white_d, black_d, ref_d)
             image = ref_d.copy_to_host()
-            image = image*4095
             image = image.reshape(4, current_res["band_height"], current_res["band_width"])
             key = image_display.study_frame("Arducam", image, index)
             if key == ord('a') and index > 0:
