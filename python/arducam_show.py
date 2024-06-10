@@ -30,6 +30,19 @@ def gpu_reflectance(image, white, black, reflectance):
         elif value > 1:
             value = 1
         reflectance[pos] = value * 4095
+@cuda.jit
+def gpu_reflectance_with_kernel(image, white, black, kernel, reflectance):
+    tx = cuda.threadIdx.x
+    bx = cuda.blockIdx.x
+    bd = cuda.blockDim.x
+    pos = bx * bd + tx
+    if pos < image.shape[0]:
+        value = (image[pos]*kernel[pos] - black[pos] * 0.8) / (white[pos]*kernel[pos] - black[pos] * 0.8)
+        if value < 0:
+            value = 0
+        elif value > 1:
+            value = 1
+        reflectance[pos] = value * 4095
 
 
 def get_arguments() -> Namespace:
@@ -91,12 +104,11 @@ def get_arguments() -> Namespace:
 
 def calculate_filter_kernel(white_ref: np.ndarray, current_res) -> np.ndarray:
     white_resh = white_ref.reshape(4, current_res["band_height"], current_res["band_width"])
-    kernel = np.empty((4, 3, 3), dtype=np.float32)
+    kernel = np.empty((4, current_res["band_height"], current_res["band_width"]), dtype=np.float32)
     for i in range(4):
-        band_kernel = white_resh[i, int(current_res["band_height"]/2)-1:int(current_res["band_height"]/2) + 2, int(current_res["band_width"]/2)-1:int(current_res["band_width"]/2) + 2].astype(np.float32) / 4095
-        band_kernel = band_kernel / np.sum(band_kernel)
+        band_max = np.max(white_resh[i, :, :].astype(np.float32))
+        band_kernel = band_max / white_resh[i, :, :]
         kernel[i, :, :] = band_kernel
-    print(kernel)
     return kernel
 
 
@@ -129,7 +141,8 @@ def main():
                 (current_res["height"] * current_res["width"] + threads_per_block - 1) / threads_per_block))
         black_cal = np.fromfile(args.black_calibration, dtype=np.uint16)
         white_cal = np.fromfile(args.white_calibration, dtype=np.uint16)
-        # kernel = calculate_filter_kernel(white_cal, current_res)
+        kernel = calculate_filter_kernel(white_cal, current_res)
+        kernel_d = cuda.to_device(kernel.flatten())
         black_d = cuda.to_device(black_cal)
         white_d = cuda.to_device(white_cal)
         while True:
@@ -137,7 +150,7 @@ def main():
             raw_d = cuda.to_device(raw)
             reflectance = np.zeros(shape=current_res["width"] * current_res["height"], dtype=np.float32)
             ref_d = cuda.to_device(reflectance)
-            gpu_reflectance[blocks_per_grid, threads_per_block](raw_d, white_d, black_d, ref_d)
+            gpu_reflectance_with_kernel[blocks_per_grid, threads_per_block](raw_d, white_d, black_d, kernel_d, ref_d)
             image = ref_d.copy_to_host()
             image = image.reshape(4, current_res["band_height"], current_res["band_width"])
             # filtered_image = np.empty((4, current_res["band_height"], current_res["band_width"]), dtype=np.uint16)
