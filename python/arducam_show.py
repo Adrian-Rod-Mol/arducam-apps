@@ -360,7 +360,7 @@ def main():
                 elif image_type == 2:
                     blue_demosaicing[correction_blocks_per_grid, threads_per_block](ref_d, corrected_d, image_data)
                 elif image_type == 3:
-                    current_filter = filter_list[i]
+                    current_filter = filter_list[i].flatten()
                     filter_d = cuda.to_device(current_filter)
                     nir_filtering[correction_blocks_per_grid, threads_per_block](ref_d, corrected_d, image_data, filter_d)
 
