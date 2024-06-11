@@ -295,8 +295,8 @@ def calculate_filter_kernel(white_ref: np.ndarray, current_res) -> np.ndarray:
     white_resh = white_ref.reshape(4, current_res["band_height"], current_res["band_width"])
     kernel = np.empty((4, 2, 2), dtype=np.float32)
     for i in range(4):
-        half_width = current_res["band_width"] / 2
-        half_height = int(current_res["band_height"]) / 2
+        half_width = int(current_res["band_width"] / 2)
+        half_height = int(current_res["band_height"] / 2)
         band_max = np.max(white_resh[i, :, :].astype(np.float32))
         band_kernel = band_max / white_resh[i, :, :]
         kernel[i, :, :] = band_kernel[half_height:half_height + 2, half_width:half_width + 2]
