@@ -85,6 +85,77 @@ def blue_demosaicing(image, out_image, image_data):
 
 
 @cuda.jit
+def red_demosaicing(image, out_image, image_data):
+    """
+    image_data:
+        0: start position of the image
+        1: size of the image
+        2: total number of rows
+        3: total number of columns
+    """
+    tx = cuda.threadIdx.x
+    bx = cuda.blockIdx.x
+    bd = cuda.blockDim.x
+    pos = bx * bd + tx
+    if pos < image_data[1]:
+        row_and_col_index = numba.float32(pos) / image_data[3]
+        row = numba.uint32(row_and_col_index)
+        col_index = numba.uint32(pos - row*image_data[3])
+        row_odd_or_even = row % 2
+        col_odd_or_even = col_index % 2
+        if row_odd_or_even == 0:
+            # On the first row
+            if row == 0:
+                if col_odd_or_even == 0:
+                    if col_index == 0:
+                        out_image[image_data[0] + pos] = image[image_data[0] + pos + image_data[3] + 1]
+                    # Otherwise, the two inferior columns are interpolated
+                    else:
+                        new_red = (image[image_data[0] + pos + image_data[3] - 1]
+                                    + image[image_data[0] + pos + image_data[3] + 1]) / 2
+                        out_image[image_data[0] + pos] = new_red
+                else:
+                    # If it is odd, the red below is copied
+                    out_image[image_data[0] + pos] = image[image_data[0] + pos + image_data[3]]
+                    
+            else:
+                if col_odd_or_even == 0:
+                    if col_index == 0:
+                        # If is the first column, the interpolation is only between the two next corners
+                        new_red = (image[image_data[0] + pos - image_data[3] + 1]
+                                    + image[image_data[0] + pos + image_data[3] + 1]) / 2
+                        out_image[image_data[0] + pos] = new_red
+                    else:
+                        # If is even, an interpolation between the four reds around the position is made
+                        new_red = (image[image_data[0] + pos - image_data[3] - 1]
+                                    + image[image_data[0] + pos - image_data[3] + 1]
+                                    + image[image_data[0] + pos + image_data[3] - 1]
+                                    + image[image_data[0] + pos + image_data[3] + 1]) / 4
+                        out_image[image_data[0] + pos] = new_red
+                    
+                else:
+                    # If the column is odd, an interpolation between the superior and inferior red is made
+                    new_red = (image[image_data[0] + pos - image_data[3]] + image[
+                        image_data[0] + pos + image_data[3]]) / 2
+                    out_image[image_data[0] + pos] = new_red
+
+        else:
+            if col_odd_or_even == 0:
+                # Can't do an interpolation with the first value. The next red is assigned
+                if col_index == 0:
+                    out_image[image_data[0] + pos] = image[image_data[0] + pos + 1]
+                else:
+                    # An interpolation between the previous red value and the next is made
+                    new_red = (image[image_data[0] + pos - 1] + image[image_data[0] + pos + 1]) / 2
+                    out_image[image_data[0] + pos] = new_red
+            else:
+                # A real red value, copied directly to the output image
+                out_image[image_data[0] + pos] = image[image_data[0] + pos]
+
+                        
+                        
+
+@cuda.jit
 def gpu_reflectance(image, white, black, reflectance):
     tx = cuda.threadIdx.x
     bx = cuda.blockIdx.x
@@ -256,15 +327,18 @@ def main():
             corrected_image = np.zeros(shape=current_res["width"] * current_res["height"], dtype=np.float32)
             corrected_d = cuda.to_device(corrected_image)
             for i, image_type in enumerate(type_list):
-                if image_type == 2:
-                    arr = np.array([
-                        i*current_res["band_width"] * current_res["band_height"],
-                        current_res["band_width"] * current_res["band_height"],
-                        current_res["band_height"],
-                        current_res["band_width"]
-                    ], dtype=np.uint32)
-                    image_data = cuda.to_device(arr)
+                arr = np.array([
+                    i * current_res["band_width"] * current_res["band_height"],
+                    current_res["band_width"] * current_res["band_height"],
+                    current_res["band_height"],
+                    current_res["band_width"]
+                ], dtype=np.uint32)
+                image_data = cuda.to_device(arr)
+                if image_type == 0:
+                    red_demosaicing[correction_blocks_per_grid, threads_per_block](ref_d, corrected_d, image_data)
+                elif image_type == 2:
                     blue_demosaicing[correction_blocks_per_grid, threads_per_block](ref_d, corrected_d, image_data)
+
             image = corrected_d.copy_to_host().reshape(4, current_res["band_height"], current_res["band_width"])*4095
             key = image_display.study_frame("Arducam", image, index)
             if key == ord('a') and index > 0:
