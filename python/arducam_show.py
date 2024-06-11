@@ -152,7 +152,26 @@ def red_demosaicing(image, out_image, image_data):
                 # A real red value, copied directly to the output image
                 out_image[image_data[0] + pos] = image[image_data[0] + pos]
 
-                        
+@cuda.jit()
+def nir_filtering(image, out_image, image_data, filter):
+    """
+        image_data:
+            0: start position of the image
+            1: size of the image
+            2: total number of rows
+            3: total number of columns
+        """
+    tx = cuda.threadIdx.x
+    bx = cuda.blockIdx.x
+    bd = cuda.blockDim.x
+    pos = bx * bd + tx
+    if pos < image_data[1]:
+        row_and_col_index = numba.float32(pos) / image_data[3]
+        row = numba.uint32(row_and_col_index)
+        col_index = numba.uint32(pos - row * image_data[3])
+        row_odd_or_even = row % 2
+        col_odd_or_even = col_index % 2
+        out_image[image_data[0] + pos] = image[image_data[0] + pos] * filter[row_odd_or_even * 2 + col_odd_or_even]
                         
 
 @cuda.jit
@@ -274,12 +293,13 @@ def select_interpolation_type(white_ref: np.ndarray, current_res) -> list:
 
 def calculate_filter_kernel(white_ref: np.ndarray, current_res) -> np.ndarray:
     white_resh = white_ref.reshape(4, current_res["band_height"], current_res["band_width"])
-    kernel = np.empty((4, current_res["band_height"], current_res["band_width"]), dtype=np.float32)
+    kernel = np.empty((4, 2, 2), dtype=np.float32)
     for i in range(4):
+        half_width = current_res["band_width"] / 2
+        half_height = int(current_res["band_height"]) / 2
         band_max = np.max(white_resh[i, :, :].astype(np.float32))
-        print(band_max)
         band_kernel = band_max / white_resh[i, :, :]
-        kernel[i, :, :] = band_kernel
+        kernel[i, :, :] = band_kernel[half_height:half_height + 2, half_width:half_width + 2]
     return kernel
 
 
@@ -316,6 +336,7 @@ def main():
         black_cal = np.fromfile(args.black_calibration, dtype=np.uint16)
         white_cal = np.fromfile(args.white_calibration, dtype=np.uint16)
         type_list = select_interpolation_type(white_cal, current_res)
+        filter_list = calculate_filter_kernel(white_cal, current_res)
         black_d = cuda.to_device(black_cal)
         white_d = cuda.to_device(white_cal)
         while True:
@@ -338,6 +359,10 @@ def main():
                     red_demosaicing[correction_blocks_per_grid, threads_per_block](ref_d, corrected_d, image_data)
                 elif image_type == 2:
                     blue_demosaicing[correction_blocks_per_grid, threads_per_block](ref_d, corrected_d, image_data)
+                elif image_type == 3:
+                    current_filter = filter_list[i]
+                    filter_d = cuda.to_device(current_filter)
+                    nir_filtering[correction_blocks_per_grid, threads_per_block](ref_d, corrected_d, image_data, filter_d)
 
             image = corrected_d.copy_to_host().reshape(4, current_res["band_height"], current_res["band_width"])*4095
             key = image_display.study_frame("Arducam", image, index)
